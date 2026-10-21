@@ -1,6 +1,7 @@
-import { cipher, invCipher, type Config } from "./aes/cipher";
+import { cipher, invCipher, VARIANTS, type Config, type Round } from "./aes/cipher";
 import { expand } from "./aes/keyExpansion";
 import { xor, type Block, dependencies } from "./aes/state";
+import { seeded } from "./random";
 const weight = (x: number) => {
   let n = 0;
   while (x) {
@@ -32,4 +33,33 @@ export function avalanche(key: Block, plaintext: Block, config: Config) {
     ),
     roundTrip: invCipher(ct, w, undefined, config).every((b, i) => b === plaintext[i]),
   };
+}
+
+/** Byte dependencies of the actual keyed 7b cipher, not a structural wiring map. */
+export function affineByteDependencies(key: Block, rounds = 2): number[][] {
+  const w = expand(key).roundKeys;
+  const atRound = (p: Block) => {
+    const trace: Round[] = [];
+    cipher(p, w, VARIANTS.affine, trace);
+    return trace[rounds].output;
+  };
+  const base = atRound(new Uint8Array(16));
+  const columns = Array.from({ length: 128 }, (_, bit) => {
+    const basis = new Uint8Array(16);
+    basis[bit >> 3] = 1 << (bit & 7);
+    return xor(atRound(basis), base);
+  });
+  // Each input-byte/output-byte block is 8 × 8 bits: any set bit is dependence.
+  return Array.from({ length: 16 }, (_, output) =>
+    Array.from({ length: 16 }, (_, input) => input).filter((input) =>
+      columns.slice(input * 8, input * 8 + 8).some((column) => column[output] !== 0),
+    ),
+  );
+}
+
+export function largerKeyAvalanche(plaintext: Block, config: Config) {
+  return [192, 256].map((size) => ({
+    size,
+    ...avalanche(seeded(0x197197)(size / 8), plaintext, config),
+  }));
 }

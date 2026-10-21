@@ -1,8 +1,46 @@
-import { test, expect, type Page } from "@playwright/test";
+import { createHash } from "node:crypto";
+import { runBreak } from "../src/harness";
+import { act7 } from "../src/ui/act7";
+import { seeded } from "../src/random";
+import { test, expect, type Page, type Locator } from "@playwright/test";
 import fips from "../src/data/fips197.json" with { type: "json" };
 import { boot, watchPageErrors } from "./gate";
 import { referenceAes } from "./reference";
 const sbox = fips.sbox.split(" ").map((x) => parseInt(x, 16));
+async function expectVerdict(locator: Locator, verdict: string, cls: string) {
+  await expect(locator).toHaveAttribute("data-verdict", verdict);
+  await expect(locator).toHaveClass(cls);
+}
+async function expectChecks(root: Locator) {
+  const checks = root.locator("[data-check]");
+  expect(await checks.count()).toBeGreaterThan(0);
+  for (const check of await checks.all()) await expectVerdict(check, "pass", "ok");
+}
+async function expectScore(
+  page: Page,
+  verdict: "attack" | "control",
+  prefix: "broken" | "control",
+) {
+  const text = await page.locator(`#${verdict}-verdict`).innerText();
+  const score = text.match(/(\d+)\/(\d+)/);
+  expect(score, `${verdict} verdict must show N/M`).not.toBeNull();
+  const rows = page.locator(`.${prefix}-rows tbody tr`);
+  expect(Number(score![2])).toBe(await rows.count());
+  expect(Number(score![1])).toBe(await rows.locator('[data-match="true"]').count());
+}
+async function expectHiddenNotPainted(page: Page) {
+  const hidden = page.locator("[hidden]");
+  expect(await hidden.count()).toBeGreaterThanOrEqual(6);
+  expect(
+    await hidden.evaluateAll((nodes) =>
+      nodes
+        .filter((node) => getComputedStyle(node).display !== "none")
+        .map((node) => node.id || node.outerHTML),
+    ),
+  ).toEqual([]);
+}
+const negativeClaim =
+  "FULL AVALANCHE (MEAN) — AND BROKEN BY ONE KNOWN PAIR. A good-looking avalanche is not security. This affine-only AES — where every output byte depends on every input byte and about half the output bits flip per input-bit flip on average — is still broken by one known plaintext.";
 async function attack(page: Page, variant: string) {
   await page.locator("#tab-7").click();
   await page.locator(`input[name=variant][value=${variant}]`).check();
@@ -11,7 +49,28 @@ async function attack(page: Page, variant: string) {
 }
 test("Every field operation and 512 computed S-box entries match FIPS", async ({ page }) => {
   await boot(page);
-  await expect(page.locator("#result-1")).toContainText("fe");
+  // Independent polynomial arithmetic: no production GF256 helper is used.
+  for (const [aHex, bHex] of [
+    ["57", "13"],
+    ["80", "83"],
+  ]) {
+    await page.locator("#byte-a").fill(aHex);
+    await page.locator("#byte-b").fill(bHex);
+    await page.locator("#compute-1").click();
+    const a = parseInt(await page.locator("#field-a").innerText(), 16);
+    const b = parseInt(await page.locator("#byte-b").inputValue(), 16);
+    expect(a).toBe(parseInt(aHex, 16));
+    expect(b).toBe(parseInt(bHex, 16));
+    const shift = a << 1;
+    const xtime = shift & 0x100 ? shift ^ 0x11b : shift;
+    let product = 0;
+    for (let bit = 0; bit < 8; bit++) if (b & (1 << bit)) product ^= a << bit;
+    for (let degree = 14; degree >= 8; degree--)
+      if (product & (1 << degree)) product ^= 0x11b << (degree - 8);
+    expect(parseInt(await page.locator("#field-xtime").innerText(), 16)).toBe(xtime);
+    expect(parseInt(await page.locator("#field-product").innerText(), 16)).toBe(product);
+    await expectChecks(page.locator("#result-1"));
+  }
   await page.locator("#byte-a").fill("00");
   await page.locator("#compute-1").click();
   await expect(page.locator("#result-1")).toContainText("no inverse");
@@ -23,7 +82,14 @@ test("Every field operation and 512 computed S-box entries match FIPS", async ({
         .map((t) => t.textContent),
     ),
   );
-  expect(entries.join("")).toBe(fips.sbox.replaceAll(" ", ""));
+  const joined = entries.join("").toLowerCase();
+  expect(joined).toMatch(/^[0-9a-f]{512}$/);
+  expect(joined).toBe(fips.sbox.replaceAll(" ", ""));
+  expect(createHash("sha256").update(joined).digest("hex")).toBe(
+    "0236816432b73ddeac16f0cd28c85e90b0f2047f9c6c8e3dc290e8dcb2ed2b24",
+  );
+  expect(entries[0x53]).toBe("ed");
+  expect(entries[0x00]).toBe("63");
   await page.locator("#act-2 details summary").click();
   const inverse = await page
     .getByRole("region", { name: "Computed inverse S-box", exact: true })
@@ -35,14 +101,17 @@ test("Every field operation and 512 computed S-box entries match FIPS", async ({
           .map((t) => t.textContent),
       ),
     );
-  expect(inverse.join("")).toBe(fips.inverseSbox.replaceAll(" ", ""));
-  await expect(page.locator("[data-check=ddt]")).toHaveAttribute("data-verdict", "pass");
-  await expect(page.locator("[data-check=lat]")).toHaveAttribute("data-verdict", "pass");
-  await page.locator("#affine-only").check();
-  await expect(page.locator("[data-check=affine-identity]")).toHaveAttribute(
-    "data-verdict",
-    "pass",
+  const inverseJoined = inverse.join("").toLowerCase();
+  expect(inverseJoined).toMatch(/^[0-9a-f]{512}$/);
+  expect(inverseJoined).toBe(fips.inverseSbox.replaceAll(" ", ""));
+  expect(createHash("sha256").update(inverseJoined).digest("hex")).toBe(
+    "c9addd5a7445595a20466dc976e1b89af354e44a04f28c2cc019d2582e4f1c14",
   );
+  await expectChecks(page.locator("#result-2"));
+  await expectVerdict(page.locator("[data-check=ddt]"), "pass", "ok");
+  await expectVerdict(page.locator("[data-check=lat]"), "pass", "ok");
+  await page.locator("#affine-only").check();
+  await expectVerdict(page.locator("[data-check=affine-identity]"), "pass", "ok");
 });
 test("All key words and Appendix B states including AddRoundKey XOR are independently checked", async ({
   page,
@@ -57,6 +126,7 @@ test("All key words and Appendix B states including AddRoundKey XOR are independ
       .locator(".word-table tbody tr")
       .evaluateAll((rows) => rows.map((r) => r.querySelectorAll("td")[1].textContent));
     expect(words).toEqual(fips.expansions[idx].words);
+    await expectChecks(page.locator("#result-4"));
   }
   await page.locator("#key-size").selectOption("128");
   await page.locator("#fips-preset").click();
@@ -80,6 +150,7 @@ test("All key words and Appendix B states including AddRoundKey XOR are independ
     expect(rows[i][7]).toBe(fips.appendixB.rounds[i - 1].output);
   }
   expect(rows[10][4]).toBe("OMITTED IN LAST ROUND");
+  await expectChecks(page.locator("#result-5"));
 });
 for (const size of [128, 256])
   test(`Browser WebCrypto uses the printed key and plaintext AES${size}`, async ({ page }) => {
@@ -88,7 +159,7 @@ for (const size of [128, 256])
     await page.locator("#seeded-preset").click();
     await page.locator("#tab-5").click();
     await page.locator("#webcrypto-check").click();
-    await expect(page.locator("#webcrypto-verdict")).toHaveAttribute("data-verdict", "match");
+    await expectVerdict(page.locator("#webcrypto-verdict"), "match", "ok");
     const key = await page.locator("#web-key").innerText(),
       plaintext = await page.locator("#web-plaintext").innerText(),
       independent = await page.evaluate(referenceAes, { key, plaintext, variant: "real", sbox });
@@ -115,10 +186,10 @@ test("Inverse correct, forward-key and wrong-mix modes show computed mismatches"
 }) => {
   await boot(page);
   await page.locator("#tab-6").click();
-  await expect(page.locator("#inverse-verdict")).toHaveAttribute("data-verdict", "match");
+  await expectVerdict(page.locator("#inverse-verdict"), "match", "ok");
   for (const mode of ["forwardKeys", "wrongMix"]) {
     await page.locator("#inverse-mode").selectOption(mode);
-    await expect(page.locator("#inverse-verdict")).toHaveAttribute("data-verdict", "mismatch");
+    await expectVerdict(page.locator("#inverse-verdict"), "mismatch", "alarm");
   }
 });
 for (const variant of ["noSub", "affine", "noShift", "noMix"])
@@ -127,22 +198,20 @@ for (const variant of ["noSub", "affine", "noShift", "noMix"])
   }) => {
     await boot(page);
     await attack(page, variant);
-    await expect(page.locator("#attack-verdict")).toHaveAttribute("data-verdict", "broken");
+    await expectVerdict(page.locator("#attack-verdict"), "broken", "alarm");
     await expect(page.locator("#attack-query-count strong")).toHaveText(
       String(variant === "noShift" ? 3 : variant === "noMix" ? 256 : 1),
     );
     const key = await page.locator("#key").inputValue();
     for (const prefix of ["broken", "control"]) {
-      const rows = await page
-        .locator("." + prefix + "-rows tbody tr")
-        .evaluateAll((rows) =>
-          rows.map((r) => ({
-            plaintext: r.querySelector("[data-plain]")!.getAttribute("data-plain")!,
-            ciphertext: r.querySelector("[data-cipher]")!.getAttribute("data-cipher")!,
-            candidate: r.querySelector("[data-candidate]")!.getAttribute("data-candidate")!,
-            match: r.querySelector("[data-match]")!.getAttribute("data-match"),
-          })),
-        );
+      const rows = await page.locator("." + prefix + "-rows tbody tr").evaluateAll((rows) =>
+        rows.map((r) => ({
+          plaintext: r.querySelector("[data-plain]")!.getAttribute("data-plain")!,
+          ciphertext: r.querySelector("[data-cipher]")!.getAttribute("data-cipher")!,
+          candidate: r.querySelector("[data-candidate]")!.getAttribute("data-candidate")!,
+          match: r.querySelector("[data-match]")!.getAttribute("data-match"),
+        })),
+      );
       expect(rows).toHaveLength(32);
       for (const row of rows) {
         const cipherVariant = prefix === "control" ? "real" : variant;
@@ -167,7 +236,13 @@ for (const variant of ["noSub", "affine", "noShift", "noMix"])
         expect(row.match).toBe(String(prefix === "broken"));
       }
     }
-    await expect(page.locator("#control-verdict")).toHaveAttribute("data-verdict", "control-fails");
+    await expectVerdict(page.locator("#control-verdict"), "control-fails", "ok");
+    await expectScore(page, "attack", "broken");
+    await expectScore(page, "control", "control");
+    if (variant === "noSub" || variant === "affine") {
+      await expectChecks(page.locator("#result-7"));
+      await expect(page.locator("#control-verdict")).toContainText("No linear model exists");
+    }
     if (variant === "affine") {
       await expect(page.locator("#affine-fixture-checks [data-verdict=pass]")).toHaveCount(3);
       await expect(page.locator("#affine-negative")).toContainText(
@@ -186,13 +261,15 @@ test("Partial codebooks visibly retain unknown bytes and retire on genuine chang
   await page.locator("#tab-7").click();
   await page.locator("#byte-count").fill("16");
   await attack(page, "noMix");
-  await expect(page.locator("#attack-verdict")).toHaveAttribute("data-verdict", "partial");
+  await expectVerdict(page.locator("#attack-verdict"), "partial", "info");
   await expect(page.locator(".broken-rows")).toContainText("·");
   await expect(page.locator(".broken-rows")).toContainText("unknown bytes");
+  await expectScore(page, "attack", "broken");
+  await expectScore(page, "control", "control");
   await page.locator("input[value=noMix]").dispatchEvent("change");
-  await expect(page.locator("#attack-verdict")).toHaveAttribute("data-verdict", "partial");
+  await expectVerdict(page.locator("#attack-verdict"), "partial", "info");
   await page.locator("#key").dispatchEvent("input");
-  await expect(page.locator("#attack-verdict")).toHaveAttribute("data-verdict", "partial");
+  await expectVerdict(page.locator("#attack-verdict"), "partial", "info");
   await page.locator("#seed").fill("1");
   await expect(page.locator("#result-7")).toBeEmpty();
   await expect(page.locator("#state-grid")).toBeEmpty();
@@ -206,13 +283,15 @@ test("Invalid input lengths, unsupported192, cancellation, and mid-flight retire
   await page.locator("#key").fill("aa");
   await page.locator("#compute-5").click();
   await expect(page.locator("#notice-5")).toContainText("No padding or truncation");
+  await expect(page.locator("#notice-5")).toContainText("found 2");
   await page.locator("#key-size").selectOption("192");
   await page.locator("#fips-preset").click();
   await page.locator("#webcrypto-check").click();
-  await expect(page.locator("#webcrypto-verdict")).toHaveAttribute("data-verdict", "unsupported");
+  await expectVerdict(page.locator("#webcrypto-verdict"), "unsupported", "info");
   await page.locator("#plaintext").fill("aa");
   await page.locator("#compute-5").click();
   await expect(page.locator("#notice-5")).toContainText("No padding or truncation");
+  await expect(page.locator("#notice-5")).toContainText("found 2");
   await page.locator("#key-size").selectOption("128");
   await page.locator("#fips-preset").click();
   await page.locator("#tab-7").click();
@@ -239,4 +318,113 @@ test("Invisible focus probe demonstrates the focus gate is live", async ({ page 
   await expect(expectNoInvisibleFocusTargets(page, "deliberate probe")).rejects.toThrow(
     "focusable elements that paint nothing",
   );
+});
+
+test("Control with an invertible linear model", async ({ page }) => {
+  await boot(page);
+  await page.locator("#seed").fill("1");
+  await page.locator("#seeded-preset").click();
+  await attack(page, "noSub");
+  await expectVerdict(page.locator("#attack-verdict"), "broken", "alarm");
+  await expectVerdict(page.locator("#control-verdict"), "control-fails", "ok");
+  await expect(page.locator("#control-verdict")).not.toContainText("No linear model exists");
+  const key = await page.locator("#key").inputValue();
+  const rows = await page.locator(".control-rows tbody tr").evaluateAll((rows) =>
+    rows.map((r) => ({
+      plaintext: r.querySelector("[data-plain]")!.getAttribute("data-plain")!,
+      ciphertext: r.querySelector("[data-cipher]")!.getAttribute("data-cipher")!,
+      candidate: r.querySelector("[data-candidate]")!.getAttribute("data-candidate")!,
+      match: r.querySelector("[data-match]")!.getAttribute("data-match"),
+    })),
+  );
+  expect(rows).toHaveLength(32);
+  for (const row of rows) {
+    expect(row.candidate).not.toBe("0".repeat(32));
+    expect(
+      await page.evaluate(referenceAes, { key, plaintext: row.plaintext, variant: "real", sbox }),
+    ).toBe(row.ciphertext);
+    expect(
+      await page.evaluate(referenceAes, { key, plaintext: row.candidate, variant: "real", sbox }),
+    ).not.toBe(row.ciphertext);
+    expect(row.match).toBe("false");
+  }
+  await expectScore(page, "attack", "broken");
+  await expectScore(page, "control", "control");
+});
+
+test("Hidden elements never paint in all seven acts and after an attack", async ({ page }) => {
+  await boot(page);
+  for (let n = 1; n <= 7; n++) {
+    await page.locator(`#tab-${n}`).click();
+    await expectHiddenNotPainted(page);
+  }
+  await attack(page, "affine");
+  await expectHiddenNotPainted(page);
+});
+
+test("Valid key change retires every act and all auxiliary results", async ({ page }) => {
+  await boot(page);
+  for (let n = 1; n <= 6; n++) {
+    await page.locator(`#tab-${n}`).click();
+    await page.locator(`#compute-${n}`).click();
+    await expect(page.locator(`#result-${n}`)).not.toBeEmpty();
+    if (n <= 5) await expectChecks(page.locator(`#result-${n}`));
+    if (n === 3) await page.locator("#layer-step").click();
+    if (n === 4) await page.locator("#word-next").click();
+    if (n === 5) {
+      await page.locator("#webcrypto-check").click();
+      await expectVerdict(page.locator("#webcrypto-verdict"), "match", "ok");
+    }
+  }
+  await attack(page, "noSub");
+  await page.locator("input[value=noSub]").dispatchEvent("change");
+  await expectVerdict(page.locator("#attack-verdict"), "broken", "alarm");
+  for (let n = 1; n <= 7; n++) await expect(page.locator(`#result-${n}`)).not.toBeEmpty();
+  for (const id of ["webcrypto-result", "word-detail", "layer-caption"])
+    await expect(page.locator(`#${id}`)).not.toBeEmpty();
+  await page.locator("#key").fill("000102030405060708090a0b0c0d0e0f");
+  for (let n = 1; n <= 7; n++) {
+    await expect(page.locator(`#result-${n}`)).toBeEmpty();
+    await expect(page.locator(`#notice-${n}`)).toContainText("retired");
+  }
+  for (const id of ["webcrypto-result", "word-detail", "layer-caption"])
+    await expect(page.locator(`#${id}`)).toBeEmpty();
+});
+
+test("Seeded affine fixture computes every check and the full negative claim", async ({ page }) => {
+  await boot(page);
+  await page.locator("#tab-7").click();
+  await page.locator("#attack-fixture").click();
+  await expect(page.locator("#key-size")).toHaveValue("128");
+  await expect(page.locator("#key")).toHaveValue("78e67caedfca8b764fbdc9a636c8f383");
+  await page.locator("#run-attack").click();
+  await expectVerdict(page.locator("#attack-verdict"), "broken", "alarm");
+  await expectChecks(page.locator("#result-7"));
+  await expect(page.locator('#result-7 [data-verdict="fail"]')).toHaveCount(0);
+  await expect(page.locator("#affine-fixture-checks [data-check]")).toHaveCount(3);
+  await expectVerdict(page.locator("#control-verdict"), "control-fails", "ok");
+  await expect(page.locator("#affine-negative")).toBeVisible();
+  await expect(page.locator("#affine-negative")).toHaveText(negativeClaim);
+  await expectScore(page, "attack", "broken");
+  await expectScore(page, "control", "control");
+});
+
+test("Singular affine recovery renders an implementation alarm", async ({ page }) => {
+  await boot(page);
+  await page.locator("#tab-7").click();
+  // Inject at the test-only harness seam, then mount the actual production renderer.
+  // No fault control is exposed to learners and no verdict HTML is mocked.
+  const key = seeded(3)(),
+    plaintext = seeded(4)();
+  const result = await runBreak("affine", key, 3, 256, { injectColumns: Array(128).fill(0n) });
+  await page.locator("#result-7").evaluate(
+    (el, html) => {
+      el.innerHTML = html;
+    },
+    act7(result, "affine", key, plaintext),
+  );
+  await expectVerdict(page.locator("#attack-verdict"), "implementation-error", "alarm");
+  await expectScore(page, "attack", "broken");
+  await expectScore(page, "control", "control");
+  await expectVerdict(page.locator("#control-verdict"), "control-fails", "ok");
 });

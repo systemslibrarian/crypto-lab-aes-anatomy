@@ -142,19 +142,16 @@ const cases = [
     name: "Attack receives victim key",
     changes: [
       {
-        file: "src/attack/affine.ts",
-        before:
-          "injectColumns?: bigint[],\n): Promise<Recovery> {\n  const own = expand(makeOwnKey())",
-        after:
-          "injectColumns?: bigint[], victimKey?: Block,\n): Promise<Recovery> {\n  const own = expand(victimKey ?? makeOwnKey())",
-      },
-      {
         file: "src/harness.ts",
-        before: "recoverAffine(oracle, makeOwnKey, config, hooks.injectColumns)",
-        after: "recoverAffine(oracle,makeOwnKey,config,hooks.injectColumns,victimKey)",
+        before: "drawOwnKey = () => ownSource(16)",
+        after: "drawOwnKey = () => ownSource(16).map((_, i) => victimKey[i])",
       },
     ],
-    command: ["npx", ["vitest", "run", "-t", "Capability boundary"]],
+    command: [
+      "npx",
+      ["vitest", "run", "-t", "Invariant 3: attacker inputs are independent of the victim key"],
+    ],
+    owningTests: ["Invariant 3: attacker inputs are independent of the victim key"],
   },
   {
     name: "Heldout constructed before attack",
@@ -163,16 +160,19 @@ const cases = [
         file: "src/harness.ts",
         before: "const choose = seeded(seed ^ 0x45d9f3b);",
         after:
-          "const earlyHeldout=hooks.generator?hooks.generator(seed^0xa341316c):new HeldoutGenerator(seed^0xa341316c);const choose=seeded(seed^0x45d9f3b);",
+          "const earlyHeldout = hooks.generator ? hooks.generator(heldoutSeed(seed)) : new HeldoutGenerator(heldoutSeed(seed));\n    const choose = seeded(seed ^ 0x45d9f3b);",
       },
       {
         file: "src/harness.ts",
         before:
-          "const heldout = hooks.generator\n        ? hooks.generator(seed ^ 0xa341316c)\n        : new HeldoutGenerator(seed ^ 0xa341316c),\n      rows",
-        after: "const heldout=earlyHeldout,rows",
+          "const heldout = hooks.generator\n        ? hooks.generator(heldoutSeed(seed))\n        : new HeldoutGenerator(heldoutSeed(seed)),\n      rows",
+        after: "const heldout = earlyHeldout, rows",
       },
     ],
     command: ["npx", ["vitest", "run", "-t", "Heldout stream"]],
+    owningTests: [
+      "Heldout stream is constructed only after attack promise resolves, for both runs",
+    ],
   },
   {
     name: "NoShift also removes MixColumns",
@@ -397,18 +397,285 @@ const cases = [
       ],
     ],
   },
+  {
+    name: "Heldout reseed replays the attacker stream",
+    changes: [
+      {
+        file: "src/harness.ts",
+        before: "hooks.generator(heldoutSeed(seed))",
+        after: "hooks.generator(seed ^ 0x6c8e9cf5)",
+      },
+      {
+        file: "src/harness.ts",
+        before: "new HeldoutGenerator(heldoutSeed(seed))",
+        after: "new HeldoutGenerator(seed ^ 0x6c8e9cf5)",
+      },
+      {
+        file: "src/harness.ts",
+        before: 'import { HeldoutGenerator, heldoutSeed } from "./heldout";',
+        after: 'import { HeldoutGenerator } from "./heldout";',
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "Invariant 4:|Invariant 4 canary:"]],
+    owningTests: [
+      "Invariant 4: held-out items never appeared in the attack transcript",
+      "Invariant 4 canary: a memorising attack scores 0/32",
+    ],
+  },
+  {
+    name: "Control discards real candidates",
+    changes: [
+      {
+        file: "src/harness.ts",
+        before: "candidate = recovered.candidate(",
+        after: "candidate = control ? null : recovered.candidate(",
+      },
+    ],
+    command: [
+      "npx",
+      ["vitest", "run", "-t", "Invertible L under the control: real candidates, all fail"],
+    ],
+    owningTests: ["Invertible L under the control: real candidates, all fail"],
+  },
+  {
+    name: "Control singular explanation deleted",
+    changes: [
+      {
+        file: "src/ui/act7.ts",
+        before:
+          "No linear model exists; zero plaintext candidates are shown below and independently fail verification.",
+        after: "",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "Singular L under the control"]],
+    owningTests: ["Singular L under the control is the expected attack failure (0/32, OK)"],
+  },
+  {
+    name: "xtime uses 0x1d modulus",
+    changes: [
+      {
+        file: "src/gf/gf256.ts",
+        before: "? 0x1b : 0",
+        after: "? 0x1d : 0",
+      },
+    ],
+    command: [
+      "npx",
+      [
+        "playwright",
+        "test",
+        "e2e/claims.spec.ts",
+        "--project=chromium",
+        "--grep",
+        "Every field operation",
+        "--workers=1",
+        "--retries=0",
+      ],
+    ],
+    owningTests: ["Every field operation and 512 computed S-box entries match FIPS"],
+  },
+  {
+    name: "Attack verdict alarm class becomes ok",
+    changes: [
+      {
+        file: "src/ui/act7.ts",
+        before: 'matrixBroken || broken.successes === 32 ? "alarm" : "info"',
+        after: 'matrixBroken || broken.successes === 32 ? "ok" : "info"',
+      },
+    ],
+    command: [
+      "npx",
+      [
+        "playwright",
+        "test",
+        "e2e/claims.spec.ts",
+        "--project=chromium",
+        "--grep",
+        "Independent browser recomputation: noSub",
+        "--workers=1",
+        "--retries=0",
+      ],
+    ],
+    owningTests: [
+      "Independent browser recomputation: noSub 32 heldout successes and 32 realAES failures",
+    ],
+  },
+  {
+    name: "Hidden tabpanel paints",
+    changes: [
+      {
+        file: "src/style.css",
+        before: "[hidden]{display:none!important}",
+        after: "[hidden]{display:none!important}[role=tabpanel][hidden]{display:block!important}",
+      },
+    ],
+    command: [
+      "npx",
+      [
+        "playwright",
+        "test",
+        "e2e/claims.spec.ts",
+        "--project=chromium",
+        "--grep",
+        "Hidden elements never paint",
+        "--workers=1",
+        "--retries=0",
+      ],
+    ],
+    owningTests: ["Hidden elements never paint in all seven acts and after an attack"],
+  },
+  {
+    name: "Fixture dependency check uses one round",
+    changes: [
+      {
+        file: "src/ui/act7.ts",
+        before: "affineByteDependencies(key, 2)",
+        after: "affineByteDependencies(key, 1)",
+      },
+    ],
+    command: [
+      "npx",
+      [
+        "playwright",
+        "test",
+        "e2e/claims.spec.ts",
+        "--project=chromium",
+        "--grep",
+        "Seeded affine fixture",
+        "--workers=1",
+        "--retries=0",
+      ],
+    ],
+    owningTests: ["Seeded affine fixture computes every check and the full negative claim"],
+  },
+  {
+    name: "LAT includes the zero-zero mask",
+    changes: [
+      {
+        file: "src/aes/sbox.ts",
+        before: "if (a !== 0 && b !== 0) maxBias",
+        after: "if (a >= 0 && b >= 0) maxBias",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "FIPS all256"]],
+    owningTests: ["FIPS all256 S-box and inverse entries, exhaustive DDT LAT affine facts"],
+  },
+  {
+    name: "Inverse MixColumns swaps 11 and 13",
+    changes: [
+      {
+        file: "src/aes/state.ts",
+        before: "[14, 11, 13, 9],\n    [9, 14, 11, 13],\n    [13, 9, 14, 11],\n    [11, 13, 9, 14]",
+        after: "[14, 13, 11, 9],\n    [9, 14, 13, 11],\n    [11, 9, 14, 13],\n    [13, 11, 9, 14]",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "MDS all69"]],
+    owningTests: ["MDS all69 minors, inverse matrix, dependencies and exact order8"],
+  },
+  {
+    name: "Collapse uses MC SR SR",
+    changes: [
+      {
+        file: "src/ui/act7.ts",
+        before: "collapsed = shiftRows(mixColumns(shiftRows(plaintext)))",
+        after: "collapsed = mixColumns(shiftRows(shiftRows(plaintext)))",
+      },
+    ],
+    command: [
+      "npx",
+      [
+        "playwright",
+        "test",
+        "e2e/claims.spec.ts",
+        "--project=chromium",
+        "--grep",
+        "Independent browser recomputation: noSub",
+        "--workers=1",
+        "--retries=0",
+      ],
+    ],
+    owningTests: [
+      "Independent browser recomputation: noSub 32 heldout successes and 32 realAES failures",
+    ],
+  },
+  {
+    name: "Keyed round trip omits the ablation config",
+    changes: [
+      {
+        file: "src/diagnostics.ts",
+        before: "invCipher(ct, w, undefined, config)",
+        after: "invCipher(ct, w, undefined)",
+      },
+    ],
+    command: [
+      "npx",
+      [
+        "playwright",
+        "test",
+        "e2e/claims.spec.ts",
+        "--project=chromium",
+        "--grep",
+        "Seeded affine fixture",
+        "--workers=1",
+        "--retries=0",
+      ],
+    ],
+    owningTests: ["Seeded affine fixture computes every check and the full negative claim"],
+  },
+  {
+    name: "7c splice always copies pair zero",
+    changes: [
+      {
+        file: "src/attack/columns.ts",
+        before: "out.set(pair.ciphertext.slice(c * 4, c * 4 + 4), c * 4)",
+        after: "out.set(pairs[0].ciphertext.slice(c * 4, c * 4 + 4), c * 4)",
+      },
+    ],
+    command: [
+      "npx",
+      [
+        "playwright",
+        "test",
+        "e2e/claims.spec.ts",
+        "--project=chromium",
+        "--grep",
+        "Independent browser recomputation: noShift",
+        "--workers=1",
+        "--retries=0",
+      ],
+    ],
+    owningTests: [
+      "Independent browser recomputation: noShift 32 heldout successes and 32 realAES failures",
+    ],
+  },
+  {
+    name: "7a larger keys display 7b statistics",
+    changes: [
+      {
+        file: "src/ui/act7.ts",
+        before: "largerKeyAvalanche(plaintext, VARIANTS[variant])",
+        after: "largerKeyAvalanche(plaintext, VARIANTS.affine)",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "Larger-key avalanche"]],
+    owningTests: ["Larger-key avalanche diagnostics compute each variant with the same plaintext"],
+  },
 ];
 
 for (const c of cases)
   if (c.command[1].includes("--grep") && config) c.command[1].push("--config", config);
 const files = [...new Set(cases.flatMap((c) => c.changes.map((x) => x.file)))];
-if (spawnSync("git", ["diff", "--exit-code", "--", ...files], { encoding: "utf8" }).status !== 0)
+if (
+  spawnSync("git", ["diff", "--exit-code", "HEAD", "--", ...files, "src", "e2e", "scripts"], {
+    encoding: "utf8",
+  }).status !== 0
+)
   throw Error("Commit source before mutation checks.");
 pass(build, "baseline build");
 const baseline = hash(),
   evidence = [];
 mkdirSync("mutation-logs", { recursive: true });
-for (const { name, changes, command } of cases) {
+for (const { name, changes, command, owningTests } of cases) {
   pass(command, name + ": baseline test");
   const originals = new Map(changes.map((c) => [c.file, readFileSync(c.file, "utf8")]));
   let mutant;
@@ -448,6 +715,7 @@ for (const { name, changes, command } of cases) {
             ? command[1].indexOf("--grep") + 1
             : command[1].indexOf("-t") + 1
         ],
+      owningTests,
       failedTests: output.split("\n").filter((s) => /FAIL |✘|× /.test(s)),
       assertionFailure: true,
       retries: 0,
@@ -462,3 +730,4 @@ for (const { name, changes, command } of cases) {
   writeFileSync("mutation-evidence.json", JSON.stringify(evidence, null, 2) + "\n");
   console.log(name + ": killed; exact artifact restored; owning test green");
 }
+console.log(`${evidence.length} of ${cases.length} killed`);

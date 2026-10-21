@@ -1,17 +1,8 @@
 import { runBreak } from "../harness";
-import { avalanche } from "../diagnostics";
+import { avalanche, affineByteDependencies, largerKeyAvalanche } from "../diagnostics";
 import { VARIANTS, cipher } from "../aes/cipher";
 import { expand } from "../aes/keyExpansion";
-import {
-  linearOrder,
-  shiftRows,
-  mixColumns,
-  xor,
-  hex,
-  equal,
-  type Block,
-  dependencies,
-} from "../aes/state";
+import { linearOrder, shiftRows, mixColumns, xor, hex, equal, type Block } from "../aes/state";
 import { pack, apply } from "../linalg/gf2";
 import { table, check } from "./common";
 type Result = Awaited<ReturnType<typeof runBreak>>;
@@ -29,7 +20,8 @@ export function act7(result: Result, variant: string, key: Block, plaintext: Blo
     stats = avalanche(key, plaintext, VARIANTS[variant]);
   let html = `<p id="attack-query-count">Attack-phase victim-oracle queries: <strong>${broken.queries}</strong>. Held-out generation and verification queries are excluded. Control attack queries: ${control.queries}.</p>`;
   if (variant === "noSub" || variant === "affine") {
-    const order = linearOrder(),
+    const larger = largerKeyAvalanche(plaintext, VARIANTS[variant]),
+      order = linearOrder(),
       zero = new Uint8Array(16),
       w = expand(key).roundKeys,
       linear = xor(cipher(plaintext, w, VARIANTS.noSub), cipher(zero, w, VARIANTS.noSub)),
@@ -63,7 +55,7 @@ export function act7(result: Result, variant: string, key: Block, plaintext: Blo
           equal(linear, collapsed),
           `SR∘(MC∘SR)⁹(P) = SR∘MC∘SR(P) = ${hex(collapsed)}.`,
         );
-    html += `<p>Mean avalanche ${stats.mean.toFixed(2)} bits; range ${stats.min}…${stats.max} over all 128 input-bit flips.</p><details><summary>All avalanche counts and bit-level dependencies</summary><p>${stats.counts.join(", ")}</p><p>Each output bit depends on ${Math.min(...stats.outputDependencies)}…${Math.max(...stats.outputDependencies)} input bits for this affine map. A given bit flips with probability exactly zero or one; the strict avalanche criterion fails even if the mean looks good.</p><p>AES-192/256 affine-only means are 62.0/66.0; this attack exhibit runs only AES-128. The real S-box remains in every key schedule.</p></details>`;
+    html += `<p>Mean avalanche ${stats.mean.toFixed(2)} bits; range ${stats.min}…${stats.max} over all 128 input-bit flips.</p><details><summary>All avalanche counts and bit-level dependencies</summary><p>${stats.counts.join(", ")}</p><p>Each output bit depends on ${Math.min(...stats.outputDependencies)}…${Math.max(...stats.outputDependencies)} input bits for this affine map. A given bit flips with probability exactly zero or one; the strict avalanche criterion fails even if the mean looks good.</p><p>${variant === "affine" ? "7b affine-only" : "7a no SubBytes"}, seeded keys (0x197197) with this same plaintext: ${larger.map((x) => `AES-${x.size} mean ${x.mean.toFixed(1)} bits (${x.min}–${x.max})`).join("; ")}. This attack exhibit runs only AES-128. The real S-box remains in every key schedule.</p></details>`;
   }
   if (variant === "affine") {
     html +=
@@ -75,8 +67,8 @@ export function act7(result: Result, variant: string, key: Block, plaintext: Blo
       ) +
       check(
         "byte-dependencies",
-        dependencies(2).every((x) => x.length === 16),
-        "All 16 input bytes structurally affect every output byte after round 2.",
+        affineByteDependencies(key, 2).every((x) => x.length === 16),
+        "All 256 input/output byte pairs depend after round 2 of the keyed affine-only cipher (computed from 128 basis columns).",
       ) +
       check(
         "keyed-roundtrip",
@@ -102,7 +94,12 @@ export function act7(result: Result, variant: string, key: Block, plaintext: Blo
     html +=
       '<label>Try a target block (32 hex characters)<input id="splice-target" value="00000000000000000000000000000000" title="Every four-byte column must occur in a known pair at the same position."></label><button id="try-splice">Try splice target</button><p id="splice-result" role="status" aria-live="polite"></p>';
   const matrixBroken = broken.singular?.kind === "implementation-error";
-  html += `<p id="attack-verdict" data-verdict="${matrixBroken ? "implementation-error" : broken.partial ? "partial" : broken.successes === 32 ? "broken" : "incomplete"}" class="${matrixBroken || broken.successes === 32 ? "alarm" : "info"}">${matrixBroken ? "⚠ " + broken.singular!.message : broken.partial ? "ⓘ Partial codebook: missing bytes remain unknown." : "⚠ " + (broken.successes === 32 ? "BROKEN" : "Incomplete break") + " — " + broken.successes + "/" + broken.rows.length + " held-out items without the key"}</p>`;
+  const attackSummary = matrixBroken
+    ? "⚠ " + broken.singular!.message
+    : broken.partial
+      ? "ⓘ Partial codebook: missing bytes remain unknown."
+      : "⚠ " + (broken.successes === 32 ? "BROKEN" : "Incomplete break");
+  html += `<p id="attack-verdict" data-verdict="${matrixBroken ? "implementation-error" : broken.partial ? "partial" : broken.successes === 32 ? "broken" : "incomplete"}" class="${matrixBroken || broken.successes === 32 ? "alarm" : "info"}">${attackSummary} — ${broken.successes}/${broken.rows.length} held-out items without the key</p>`;
   const rows = (r: Result["broken"], prefix: string) =>
     table(
       `${prefix} held-out verification`,

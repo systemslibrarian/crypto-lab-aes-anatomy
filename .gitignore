@@ -4,3 +4,4 @@ test-results/
 playwright-report/
 mutation-logs/
 playwright.local.config.ts
+chat.md

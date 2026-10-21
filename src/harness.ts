@@ -1,11 +1,11 @@
 import { recoverAffine } from "./attack/affine";
 import { recoverColumns } from "./attack/columns";
 import { recoverBytes } from "./attack/bytes";
-import { HeldoutGenerator } from "./attack/heldout";
-import type { Recovery } from "./attack/types";
+import { HeldoutGenerator, heldoutSeed } from "./heldout";
+import type { Recovery, EncryptionOracle, OwnKeyFactory } from "./attack/types";
 import { createVictim } from "./victim";
 import { seeded } from "./random";
-import { VARIANTS, REAL } from "./aes/cipher";
+import { VARIANTS, REAL, type Config } from "./aes/cipher";
 import { equal, type Block } from "./aes/state";
 export interface HeldoutRow {
   plaintext: Block;
@@ -32,6 +32,16 @@ export async function runBreak(
   seed: number,
   count = variant === "noShift" ? 3 : 256,
   hooks: {
+    /** Test-only observation seams. Copies prevent observers changing attacker inputs. */
+    onOwnKey?: (bytes: Block) => void;
+    onAttackQuery?: (plaintext: Block) => void;
+    /** Test-only replacement attack; receives only the usual attacker capabilities. */
+    recoverOverride?: (
+      oracle: EncryptionOracle,
+      makeOwnKey: OwnKeyFactory,
+      config: Config,
+      count: number,
+    ) => Promise<Recovery>;
     afterAttack?: () => void;
     generator?: (seed: number) => HeldoutGenerator;
     injectColumns?: bigint[];
@@ -44,23 +54,31 @@ export async function runBreak(
     const config = control ? REAL : VARIANTS[variant],
       victim = createVictim(victimKey, config),
       ownSource = seeded(seed ^ 0x6c8e9cf5),
-      makeOwnKey = () => ownSource(16);
+      drawOwnKey = () => ownSource(16),
+      makeOwnKey = () => {
+        const bytes = drawOwnKey();
+        hooks.onOwnKey?.(bytes.slice());
+        return bytes;
+      };
     const choose = seeded(seed ^ 0x45d9f3b);
     let queries = 0;
     const oracle = async (p: Block) => {
       queries++;
+      hooks.onAttackQuery?.(p.slice());
       return victim(p);
     };
     let recovered: Recovery;
-    if (variant === "noSub" || variant === "affine")
+    if (hooks.recoverOverride)
+      recovered = await hooks.recoverOverride(oracle, makeOwnKey, config, count);
+    else if (variant === "noSub" || variant === "affine")
       recovered = await recoverAffine(oracle, makeOwnKey, config, hooks.injectColumns);
     else if (variant === "noShift") recovered = await recoverColumns(oracle, () => choose(), count);
     else recovered = await recoverBytes(oracle, count);
     // The promise has resolved; only now may the verifier construct its separate stream.
     hooks.afterAttack?.();
     const heldout = hooks.generator
-        ? hooks.generator(seed ^ 0xa341316c)
-        : new HeldoutGenerator(seed ^ 0xa341316c),
+        ? hooks.generator(heldoutSeed(seed))
+        : new HeldoutGenerator(heldoutSeed(seed)),
       rows: HeldoutRow[] = [];
     for (let i = 0; i < 32; i++) {
       const plaintext =

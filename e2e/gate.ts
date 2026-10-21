@@ -19,8 +19,8 @@ export const NARROW = { width: 380, height: 800 };
  *     `animation:none!important; transition:none!important` through
  *     `addStyleTag`. That BYPASSES this lab's own
  *     `@media (prefers-reduced-motion: reduce)` block instead of exercising it,
- *     so the one rendering a reduced-motion reader actually gets — `.panel` and
- *     `.reveal` with their animations cancelled by the stylesheet's own rule —
+ *     so the one rendering a reduced-motion reader actually gets — the `.state-stepped .state-byte` flash
+ *     with its animation cancelled by the stylesheet's own rule —
  *     was never once the rendering that got scanned. This gate sets the
  *     preference through `emulateMedia`, asserts from inside the page that it
  *     took effect (`test.use({ reducedMotion })` silently does nothing on
@@ -28,7 +28,7 @@ export const NARROW = { width: 380, height: 800 };
  *
  *  2. IT FORCED EVERY PANEL VISIBLE FROM SCRIPT. The old drive stripped every
  *     `[hidden]` attribute and set every `<details>.open` by JS before its only
- *     scan. Stripping `hidden` puts all six tabpanels on screen AT ONCE — a
+ *     scan. Stripping `hidden` puts all seven AES tabpanels on screen AT ONCE — a
  *     rendering no reader can reach and axe then scans instead of the real one
  *     — and script-opening the disclosures means the SHUT state, which is what
  *     every reader arrives at, was never scanned at all. This gate switches
@@ -285,13 +285,11 @@ export async function boot(page: Page, theme: 'dark' | 'light' = 'dark'): Promis
 /**
  * Assert the page does not require horizontal scrolling.
  *
- * WCAG 1.4.10 (Reflow, AA). axe has no rule for this at all. This lab's long
- * values are 64-byte hex runs — every `.field-value` and `.eq-derivation`
- * relies on `overflow-wrap: anywhere` instead of a scroll region, and the
- * `.sig-pair` grid collapses to one column at 640px — so the shapes at risk
- * are a new unwrapped `<code>` run or a grid item whose automatic minimum size
- * is the min-content of a 128-char line. At 380px that is precisely what this
- * check exists to catch.
+ * WCAG 1.4.10 (Reflow, AA). axe does not cover document overflow. AES blocks
+ * are 32 hex characters, keys reach 64, and the matrix has 128 bits per row.
+ * `.table-scroll` contains the wide S-box, schedule, trace and matrix tables;
+ * inline code wraps and `.state-grid` must fit beside controls at 320px.
+ * Check that those intentional local scrollers never widen the document.
  */
 export async function expectNoHorizontalOverflow(page: Page, label: string): Promise<void> {
   const overflow = await page.evaluate(() => {
@@ -577,9 +575,9 @@ export async function scan(page: Page, label: string): Promise<void> {
   //
   // The landmark four are still wanted because they are best-practice rather
   // than WCAG-tagged, so `withTags` alone does not reach them — and this page
-  // has the shape they catch: a sticky `<header role="banner">` above a
-  // `<div id="app">` holding an `<aside class="cl-hero-why">`, two `<nav>`s
-  // (the shared actions and the tablist wrapper), one `<main>` and a footer.
+  // has the shape they catch: the shared `<header role="banner">` with its
+  // navigation sits above `<main id="app">`. Main contains the hero and state
+  // asides, the seven-act tablist, result panels, scope links and footer.
   const wcag = await new AxeBuilder({ page }).withTags(TAGS).analyze();
   const landmarks = await new AxeBuilder({ page })
     .withRules([
