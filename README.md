@@ -26,7 +26,7 @@ Use this lab to understand what each AES layer contributes and to distinguish in
 
 Wrong byte order, a missing AES-256 key-schedule operation, retaining MixColumns in the last round, or using the wrong inverse can produce plausible-looking bytes. Independent published vectors and browser recomputation catch those errors. A singular linear map in an affine ablation is an implementation alarm, while failure to find a linear model for full AES is an expected control outcome.
 
-The affine-only fixture has mean avalanche 61.5 bits, complete structural byte dependency after two rounds, and a working keyed inverse. It is nevertheless broken by one known pair. Every displayed control row is computed and checked; a green-looking average is not a security argument. Partial byte codebooks retain unknown bytes as dots, and an absent splice column is refused.
+The affine-only fixture has mean avalanche 61.5 bits, complete byte dependency computed from the keyed cipher’s 128 basis columns after two rounds, and a working keyed inverse. It is nevertheless broken by one known pair. Every displayed control row is computed and checked; a green-looking average is not a security argument. Partial byte codebooks retain unknown bytes as dots, and an absent splice column is refused.
 
 ## Real-World Usage
 
@@ -57,14 +57,14 @@ npm run dev
 npm test
 npm run build
 npx playwright install chromium
-npm run test:e2e
-npm run test:mutations
+npx playwright test --retries=0
+node scripts/check-mutations.mjs
 node scripts/measure-performance.mjs
 ```
 
-Twenty-five unit cases check all FIPS words and intermediate states, 400 seeded WebCrypto comparisons, 200 AES-192 round trips, exhaustive finite-field facts, all 69 minors, 200 seeded ablation-property cases, oracle capability boundaries, held-out ordering, singular and partial-codebook refusals, and the negative fixture. Twelve browser claims independently recompute all attack/control rows inside `page.evaluate`, inspect all key words and both S-box tables, and verify every AddRoundKey XOR. Two accessibility drives scan all seven acts and expanded results at desktop and 320px: axe A/AA and landmarks, measured visible/hidden text and nontext contrast, keyboard scrollers, focus and reflow. The nontext baseline is empty.
+Thirty-one unit cases check all FIPS words and intermediate states, 400 seeded WebCrypto comparisons, 200 AES-192 round trips, exhaustive finite-field facts, all 69 minors, 200 seeded ablation-property cases, oracle import/arity and victim-key independence boundaries, held-out ordering/transcript separation, a memorising-attack canary, independently reconstructed invertible controls, singular and partial-codebook refusals, and the negative fixture. Seventeen browser claims independently recompute all attack/control rows inside `page.evaluate`, inspect all key words and both S-box tables (including fixed SHA-256 digests), verify every AddRoundKey XOR and field computation, and check verdict classes, score denominators, hidden panels and complete retirement. Two accessibility drives scan all seven acts and expanded results at desktop and 320px: axe A/AA and landmarks, measured visible/hidden text and nontext contrast, keyboard scrollers, focus and reflow. The nontext baseline is empty.
 
-Twenty scripted mutations cover the nineteen requested defects plus a broken avalanche computation. Each must build into a different artifact, fail a named assertion with retries disabled, restore byte-for-byte, and pass its owning test again. `mutation-evidence.json` records the executed results. The AES-256-only mutant also runs AES-128 controls to prove those paths still pass. GitHub Pages deployment depends on the complete unit/build/browser gate; grouped Dependabot changes use that same gate and explicitly dispatch deployment after merge.
+Thirty-three scripted mutations cover the original twenty cases (replacing the name-based key leak with a harness leak), every audit survivor, and the additional LAT, inverse-matrix, collapse, round-trip, splice, dependency and larger-key display regressions. Each must build into a different artifact, fail a named assertion with retries disabled, restore byte-for-byte, and pass its owning test again. `mutation-evidence.json` records the executed results and named owning tests; [AUDIT_VERIFICATION.md](AUDIT_VERIFICATION.md) maps every new case to its owner. Full-suite results: **31/31 unit, 17/17 claims, 2/2 accessibility, zero skipped; 33 of 33 mutations killed.** The AES-256-only mutant also runs AES-128 controls to prove those paths still pass. GitHub Pages deployment depends on the complete unit/build/browser gate; grouped Dependabot changes use that same gate and explicitly dispatch deployment after merge.
 
 ## Performance
 
