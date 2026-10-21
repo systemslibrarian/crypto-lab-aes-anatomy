@@ -1,6 +1,6 @@
 // Mutations run only on a committed, clean source baseline. Each is built, killed,
 // restored byte-for-byte, rebuilt and tested green before the next begins.
-import { readFileSync, writeFileSync, readdirSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync, mkdirSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { resolve, dirname, join } from "node:path";
@@ -26,6 +26,8 @@ const build = ["npm", ["run", "build"]];
 const run = ([cmd, args]) =>
   spawnSync(cmd, args, { cwd: root, encoding: "utf8", env: { ...process.env, CI: "1" } });
 const pass = (cmd, label) => {
+  // Compare complete fresh artifacts; stale hashed chunks must never pollute a restore.
+  if (cmd === build) rmSync("dist", { recursive: true, force: true });
   const r = run(cmd);
   if (r.status !== 0) throw Error(`${label}\n${r.stdout}\n${r.stderr}`);
   return r;
@@ -716,7 +718,7 @@ for (const { name, changes, command, owningTests } of cases) {
             : command[1].indexOf("-t") + 1
         ],
       owningTests,
-      failedTests: output.split("\n").filter((s) => /FAIL |✘|× /.test(s)),
+      failedTests: output.split("\n").filter((s) => /^\s*(?:FAIL\s|[✘×]\s)/.test(s)),
       assertionFailure: true,
       retries: 0,
     });

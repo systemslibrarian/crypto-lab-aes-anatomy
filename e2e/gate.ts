@@ -10,56 +10,23 @@ export const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 export const NARROW = { width: 380, height: 800 };
 
 /**
- * Shared machinery for the WCAG gate.
+ * Shared machinery for the AES Anatomy WCAG gate.
  *
- * Five rules govern everything here, and each one corrects something the gate
- * this replaces did:
- *
- *  1. NOTHING IS INJECTED INTO THE PAGE BEFORE A SCAN. The old spec pushed
- *     `animation:none!important; transition:none!important` through
- *     `addStyleTag`. That BYPASSES this lab's own
- *     `@media (prefers-reduced-motion: reduce)` block instead of exercising it,
- *     so the one rendering a reduced-motion reader actually gets — the `.state-stepped .state-byte` flash
- *     with its animation cancelled by the stylesheet's own rule —
- *     was never once the rendering that got scanned. This gate sets the
- *     preference through `emulateMedia`, asserts from inside the page that it
- *     took effect (`test.use({ reducedMotion })` silently does nothing on
- *     Playwright 1.61.1), and injects nothing.
- *
- *  2. IT FORCED EVERY PANEL VISIBLE FROM SCRIPT. The old drive stripped every
- *     `[hidden]` attribute and set every `<details>.open` by JS before its only
- *     scan. Stripping `hidden` puts all seven AES tabpanels on screen AT ONCE — a
- *     rendering no reader can reach and axe then scans instead of the real one
- *     — and script-opening the disclosures means the SHUT state, which is what
- *     every reader arrives at, was never scanned at all. This gate switches
- *     tabs by clicking them and opens each disclosure through its `<summary>`,
- *     which is the route a reader has, and scans before and after.
- *
- *  3. IT DROVE BLIND AND THEN THREW THE STATES AWAY. The old drive clicked
- *     every button whose label matched a regex, swallowed every failure with
- *     `.catch(() => {})`, waited a fixed 120ms per tab, and scanned ONCE at the
- *     end — so the invalid-key rendering, the malformed-hex branch, the
- *     rejected-preset pipeline and the stepper's intermediate reveals were all
- *     overwritten before anything measured them, and a click that silently did
- *     nothing looked identical to one that worked. This drive names every
- *     control it touches, asserts a real completion signal after each, and
- *     scans after every step, in {dark, light} x {1280, 380}.
- *
- *  4. `violations` IS NOT THE WHOLE ORACLE. See `scan`. The surfaces that carry
- *     this lab's meaning — every `.verdict-*` tone, both `.pill` states, the
- *     `.callout-danger` / `.callout-caveat` warnings, the `.learner-check`
- *     tint and the shared top bar's `color-mix()` ink — are all `color-mix()`
- *     fills axe files under `incomplete` rather than judging. So is an
- *     `aria-label` on a role-less element.
- *
- *  5. IT HAD NO REFLOW, NON-TEXT-CONTRAST OR GENERATED-CONTENT ORACLE. The old
- *     spec hand-rolled one luminance check over two input selectors, reading
- *     the DECLARED `border-top-color` and `background-color` — blind to
- *     `color-mix()`, to composited backdrops, to every `.btn`, `.seg-btn`,
- *     `.tab-btn` and preset control, and to all states past first paint.
- *     `nontext.ts` replaces it with a measured oracle over every control at
- *     every driven state, and `expectNoHorizontalOverflow` adds the 1.4.10
- *     check axe has no rule for.
+ * 1. Emulate reduced motion before navigation and verify the preference in the
+ *    page. Do not inject CSS that would bypass `.state-stepped .state-byte` or
+ *    the production stylesheet's animation and transition rules.
+ * 2. Reach the seven acts by clicking their tabs. Open disclosures through
+ *    their summaries; retain `[hidden]` so every scan reflects a reachable UI.
+ * 3. Drive named controls and wait for observable results. The a11y spec scans
+ *    all acts, expanded results, zero inverse, inverse mismatch, running and
+ *    completed attacks, partial codebooks and cancellation at 1280px and 320px.
+ *    The page deliberately stays dark even when storage initially asks for light.
+ * 4. Check axe's incomplete results as well as violations. The shared top bar
+ *    uses `color-mix()`; arithmetic checks also cover `.ok`, `.alarm`, `.info`,
+ *    tables and state bytes against their actual composited backgrounds.
+ * 5. Measure non-text contrast, scrolling-region keyboard access, focus and
+ *    document reflow. The wide S-box, round traces and 128-bit matrix rows must
+ *    scroll within their labelled regions rather than widen the whole page.
  */
 
 /**
@@ -78,7 +45,7 @@ export const NARROW = { width: 380, height: 800 };
  * gives up and proceeds, and Playwright's own timeout is the backstop.
  *
  * Under the reduced motion this gate asserts, `style.css`'s reduced-motion
- * block cancels `.panel` / `.reveal` animations and every transition, so
+ * block cancels the state-byte flash animation and every transition, so
  * `getAnimations()` is normally empty and this returns on the sixth frame. It
  * stays because the shared top bar's `.cl-btn` transitions are declared
  * OUTSIDE the lab's `@media` block — `* { transition: none !important }` wins
@@ -196,20 +163,9 @@ export async function assertSingleBanner(page: Page): Promise<void> {
 }
 
 /**
- * List semantics survive their styling.
- *
- * This lab's one list is the Verify Workbench pipeline: `ol.stage-list` styled
- * `list-style: none`, which is exactly the declaration that makes Safari and
- * VoiceOver DROP the list's implicit role. `verifyWorkbench.ts` compensates
- * the documented way — an explicit `role="list"` on the `<ol>` and
- * `role="listitem"` on every `.stage` — so here, unlike most of this fleet, an
- * explicit role on a list is the fix rather than the defect. What is asserted
- * is therefore the SHAPE of that fix: any explicit role on a `ul`/`ol` must be
- * `list` (any other value orphans every `<li>` under it), and a `role="list"`
- * must never sit on an empty element, because axe applies
- * `aria-required-children` to the explicit role and fails it the day the
- * pipeline renders with no stages. Roles can be assigned as JS properties in
- * an element-creation helper, so ask the DOM rather than grepping the source.
+ * Preserve list semantics in AES Anatomy's scope links and any generated lists.
+ * If a list has an explicit role, it must still be `list` and contain list items.
+ * Query the rendered DOM so a role assigned by script is checked too.
  */
 export async function assertListSemantics(page: Page): Promise<void> {
   const broken = await page.$$eval('ul[role], ol[role]', (els) =>
@@ -227,48 +183,15 @@ export async function assertListSemantics(page: Page): Promise<void> {
 }
 
 /**
- * Load the page in a known theme with reduced motion actually in effect, and
- * assert the content every scan relies on is really on the page — including
- * the lab's DEFAULTS, which are never assumed.
+ * Shared setup checks structure, not educational copy. Emulate reduced motion
+ * before navigation and confirm it through matchMedia. Seed the theme in
+ * storage; this page intentionally overrides both stored choices to dark.
  *
- * `test.use({ reducedMotion })` silently does nothing on Playwright 1.61.1, so
- * the emulation is applied imperatively BEFORE the navigation and then
- * *asserted* from inside the page. Nothing in this lab's JS branches on
- * `matchMedia`, but the CSS reduced-motion block is the only thing standing
- * between a scan and the mid-flight `fade`/`reveal` opacities, so the
- * assertion is still the difference between scanning the reduced-motion
- * rendering and merely believing we did.
- *
- * The theme is seeded through `localStorage` rather than by clicking the
- * toggle, which pins down a real coupling as a side effect: `index.html`'s
- * anti-flash script reads `localStorage.getItem('theme')` and the shared bar's
- * toggle writes `localStorage.setItem('theme', …)`. Both agree on `'theme'`;
- * if either drifted, this boot fails on `data-theme` rather than quietly
- * scanning dark twice.
- *
- * The defaults are asserted at length because `main.ts` renders each tabpanel
- * lazily on first activation, and the Sign & Verify panel signs a real message
- * at mount. A navigation that resolves proves nothing: a renderer that threw
- * would leave `#panel-sign` empty, and an empty region is exactly what a scan
- * reports as perfectly accessible.
- */
-/**
- * Shared setup. Runs before EVERY test that imports it, so an assertion here
- * fails all of them at once, under whatever name those tests carry.
- *
- * SO THIS FUNCTION ASSERTS STRUCTURE AND NEVER PRODUCT COPY. On 2026-09-26
- * crypto-lab-mceliece-gate changed one textarea's default string; its gate.ts
- * still asserted the old sentence, boot() threw, both axe runs failed, the
- * build job failed, the deploy was skipped, and deploy-sync reported the lab
- * stale. The step that went red was called "Accessibility gate", and four of
- * its six a11y tests had passed. For three days the live site served security
- * claims that main had already corrected, and the one red thing in sight named
- * the wrong subject.
- *
- * Structure: the control exists, the arrival panel is the one that ships,
- * counts, [hidden]/toBeEmpty on lazily-rendered panels, a default matching a
- * SHAPE (/^[0-9a-f]{64}$/). Copy: what a string SAYS — that belongs in
- * e2e/claims.spec.ts, where a failure names copy as the subject.
+ * Main renders the seven tab controls and a sixteen-byte state grid on arrival,
+ * while each act's derived results are initialized on activation. These counts,
+ * the single heading and banner, and list semantics catch a missing shell.
+ * The field values, cryptographic outcomes and explanatory text are owned by
+ * claims.spec.ts, so their failures name the appropriate learning claim.
  */
 export async function boot(page: Page, theme: 'dark' | 'light' = 'dark'): Promise<void> {
   await page.emulateMedia({reducedMotion:'reduce'});
@@ -538,16 +461,11 @@ export function expectBaselineNotStale(): void {
  *  - `incomplete` — axe's "could not decide" bucket, which never reaches the
  *    violations array. The one rule id allowed to remain incomplete is
  *    `color-contrast`, and only because the next assertion computes those
- *    ratios arithmetically — which matters here because the surfaces carrying
- *    this lab's meaning are `color-mix()` fills axe cannot resolve: every
- *    verdict tone, both pill states, the danger/caveat callouts, the
- *    learner-check tint, the hero aside and the shared bar's ink. Everything
- *    else in that bucket is a real result axe simply could not finish —
- *    including `aria-prohibited-attr`, which is where an `aria-label` on a
- *    role-less element hides. This page leans on getting that right: the
- *    `.seg`, `.radio-row`, `.preset-row` and learner-check option groups all
- *    pair their labels with `role="group"`. Drop any of those roles and the
- *    label is silently discarded.
+ *    ratios arithmetically, including the shared top bar's `color-mix()` ink
+ *    and each verdict's composited background. Every other incomplete rule
+ *    must be resolved. AES Anatomy's fieldset/legend labels the variant radio
+ *    controls, and its table scrollers use named region roles; an invalid
+ *    ARIA label or missing role must not be dismissed as an unfinished scan.
  *  - arithmetic contrast — composite-aware WCAG 1.4.3 over every text node.
  *  - the same walk over `aria-hidden` content with the exemption lifted —
  *    SC 1.4.3 is about what a reader SEES; see `contrast.ts` for what this
