@@ -1,0 +1,5 @@
+import type {Block} from '../aes/state';
+export const pack=(bytes:Block)=>bytes.reduce((n,b,i)=>n|(BigInt(b)<<BigInt(8*i)),0n);
+export const unpack=(n:bigint)=>Uint8Array.from({length:16},(_,i)=>Number(n>>BigInt(8*i)&255n));
+export function apply(columns:bigint[],value:bigint):bigint{let out=0n;for(let i=0;i<128;i++)if(value>>BigInt(i)&1n)out^=columns[i];return out;}
+export function invert(columns:bigint[]){if(columns.length!==128)throw Error('128 columns required.');const rows=Array.from({length:128},(_,r)=>columns.reduce((v,c,i)=>v|(((c>>BigInt(r))&1n)<<BigInt(i)),0n)),right=Array.from({length:128},(_,r)=>1n<<BigInt(r));let operations=0;for(let col=0;col<128;col++){let pivot=col;while(pivot<128&&!(rows[pivot]>>BigInt(col)&1n))pivot++;if(pivot===128)return {inverse:null,rank:col,operations};[rows[pivot],rows[col]]=[rows[col],rows[pivot]];[right[pivot],right[col]]=[right[col],right[pivot]];for(let r=0;r<128;r++)if(r!==col&&(rows[r]>>BigInt(col)&1n)){rows[r]^=rows[col];right[r]^=right[col];operations++;}}const inverse=Array.from({length:128},(_,c)=>right.reduce((v,row,r)=>v|(((row>>BigInt(c))&1n)<<BigInt(r)),0n));return {inverse,rank:128,operations};}

@@ -1,0 +1,2 @@
+import {runBreak} from './harness';import {act7} from './ui/act7';
+self.onmessage=async(e:MessageEvent<{variant:string;key:Uint8Array;plaintext:Uint8Array;seed:number;count:number}>)=>{const t=performance.now();try{const v=e.data,result=await runBreak(v.variant,v.key,v.seed,v.count);self.postMessage({ok:true,html:act7(result,v.variant,v.key,v.plaintext),elapsed:performance.now()-t});}catch(e){self.postMessage({ok:false,error:(e as Error).message});}};

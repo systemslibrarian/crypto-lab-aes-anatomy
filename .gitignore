@@ -1,0 +1,6 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+mutation-logs/
+playwright.local.config.ts

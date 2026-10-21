@@ -1,0 +1,70 @@
+{
+  "cpuThrottling": "First runs unthrottled; mobileBudgetRuns use Chromium 4× CPU slowdown, a simulation rather than a physical phone",
+  "mobileBudgetRuns": [
+    {
+      "DDT": 11.800000000745058,
+      "LAT": 26.899999998509884,
+      "all69MDSMinors": 1.7000000029802322,
+      "linearOrder128Bases": 5.699999999254942,
+      "noSubAttackVerificationAndHTML": 133.59999999776483,
+      "affineAttackVerificationAndHTML": 176.20000000298023,
+      "noShiftAttackVerificationAndHTML": 35.099999997764826,
+      "noMixAttackVerificationAndHTML": 86.60000000149012
+    },
+    {
+      "DDT": 9.799999997019768,
+      "LAT": 23.400000002235174,
+      "all69MDSMinors": 0.5,
+      "linearOrder128Bases": 4.899999998509884,
+      "noSubAttackVerificationAndHTML": 118.40000000223517,
+      "affineAttackVerificationAndHTML": 140.29999999701977,
+      "noShiftAttackVerificationAndHTML": 46.69999999925494,
+      "noMixAttackVerificationAndHTML": 107.70000000298023
+    },
+    {
+      "DDT": 11.5,
+      "LAT": 36.899999998509884,
+      "all69MDSMinors": 1.5,
+      "linearOrder128Bases": 6.400000002235174,
+      "noSubAttackVerificationAndHTML": 180.5,
+      "affineAttackVerificationAndHTML": 155.09999999776483,
+      "noShiftAttackVerificationAndHTML": 34.69999999925494,
+      "noMixAttackVerificationAndHTML": 99.60000000149012
+    }
+  ],
+  "date": "2026-10-21T20:19:26.307Z",
+  "browser": "153.0.8010.0",
+  "build": "Vite minified IIFE using the same production modules; cold then two warm runs, on the browser main thread",
+  "runs": [
+    {
+      "DDT": 3.800000000745058,
+      "LAT": 7.5,
+      "all69MDSMinors": 0.7999999970197678,
+      "linearOrder128Bases": 2.7000000029802322,
+      "noSubAttackVerificationAndHTML": 33.30000000074506,
+      "affineAttackVerificationAndHTML": 30.399999998509884,
+      "noShiftAttackVerificationAndHTML": 10.200000002980232,
+      "noMixAttackVerificationAndHTML": 22.399999998509884
+    },
+    {
+      "DDT": 2.399999998509884,
+      "LAT": 6.400000002235174,
+      "all69MDSMinors": 0.5999999977648258,
+      "linearOrder128Bases": 1.4000000022351742,
+      "noSubAttackVerificationAndHTML": 34.80000000074506,
+      "affineAttackVerificationAndHTML": 33.599999997764826,
+      "noShiftAttackVerificationAndHTML": 7.699999999254942,
+      "noMixAttackVerificationAndHTML": 21
+    },
+    {
+      "DDT": 2.300000000745058,
+      "LAT": 6.300000000745058,
+      "all69MDSMinors": 0.6000000014901161,
+      "linearOrder128Bases": 1.2999999970197678,
+      "noSubAttackVerificationAndHTML": 28.800000000745058,
+      "affineAttackVerificationAndHTML": 32.600000001490116,
+      "noShiftAttackVerificationAndHTML": 6.699999999254942,
+      "noMixAttackVerificationAndHTML": 19.899999998509884
+    }
+  ]
+}
