@@ -1,2 +1,52 @@
-import fips from '../data/fips197.json';import {cipher,type Round} from '../aes/cipher';import {expand} from '../aes/keyExpansion';import {hex,parseHex,type Block} from '../aes/state';import {table,check} from './common';
-export function act5(key:Block,plaintext:Block){const trace:Round[]=[],ct=cipher(plaintext,expand(key).roundKeys,undefined,trace),kat:Round[]=[];cipher(parseHex(fips.appendixB.plaintext,[32]),expand(parseHex(fips.appendixB.key,[32])).roundKeys,undefined,kat);const match=fips.appendixB.rounds.every((x,i)=>['input','sub','shift','key','output'].every(k=>hex(kat[i+1][k as 'input'])===x[k as 'input'])&&hex(kat[i+1].mix??new Uint8Array())===('mix'in x?x.mix:''));return {trace,html:check('appendix-b',match,'Every intermediate matches FIPS 197-upd1 Appendix B.')+`<p>Plaintext <code id="printed-plaintext">${hex(plaintext)}</code>; key <code id="printed-key">${hex(key)}</code>; ciphertext <code id="printed-ciphertext">${hex(ct)}</code>.</p>`+table('All cipher rounds',['Round','Input','SubBytes','ShiftRows','MixColumns','Before AddRoundKey','Round key','Output'],trace.map(r=>[String(r.round),hex(r.input),r.round?hex(r.sub):'—',r.round?hex(r.shift):'—',r.mix?hex(r.mix):r.round?'OMITTED IN LAST ROUND':'—',hex(r.beforeKey),hex(r.key),hex(r.output)]),'cipher-trace')};}
+import fips from "../data/fips197.json";
+import { cipher, type Round } from "../aes/cipher";
+import { expand } from "../aes/keyExpansion";
+import { hex, parseHex, type Block } from "../aes/state";
+import { table, check } from "./common";
+export function act5(key: Block, plaintext: Block) {
+  const trace: Round[] = [],
+    ct = cipher(plaintext, expand(key).roundKeys, undefined, trace),
+    kat: Round[] = [];
+  cipher(
+    parseHex(fips.appendixB.plaintext, [32]),
+    expand(parseHex(fips.appendixB.key, [32])).roundKeys,
+    undefined,
+    kat,
+  );
+  const match = fips.appendixB.rounds.every(
+    (x, i) =>
+      ["input", "sub", "shift", "key", "output"].every(
+        (k) => hex(kat[i + 1][k as "input"]) === x[k as "input"],
+      ) && hex(kat[i + 1].mix ?? new Uint8Array()) === ("mix" in x ? x.mix : ""),
+  );
+  return {
+    trace,
+    html:
+      check("appendix-b", match, "Every intermediate matches FIPS 197-upd1 Appendix B.") +
+      `<p>Plaintext <code id="printed-plaintext">${hex(plaintext)}</code>; key <code id="printed-key">${hex(key)}</code>; ciphertext <code id="printed-ciphertext">${hex(ct)}</code>.</p>` +
+      table(
+        "All cipher rounds",
+        [
+          "Round",
+          "Input",
+          "SubBytes",
+          "ShiftRows",
+          "MixColumns",
+          "Before AddRoundKey",
+          "Round key",
+          "Output",
+        ],
+        trace.map((r) => [
+          String(r.round),
+          hex(r.input),
+          r.round ? hex(r.sub) : "—",
+          r.round ? hex(r.shift) : "—",
+          r.mix ? hex(r.mix) : r.round ? "OMITTED IN LAST ROUND" : "—",
+          hex(r.beforeKey),
+          hex(r.key),
+          hex(r.output),
+        ]),
+        "cipher-trace",
+      ),
+  };
+}

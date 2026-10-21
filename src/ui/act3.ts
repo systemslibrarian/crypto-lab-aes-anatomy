@@ -1,2 +1,80 @@
-import {MC,IMC,matrixProduct,mdsMinors,dependencies,xor,type Block,hex} from '../aes/state';import {cipher,type Round} from '../aes/cipher';import {expand} from '../aes/keyExpansion';import {table,check} from './common';
-export function act3(key:Block,plaintext:Block){const product=matrixProduct(MC,IMC),minors=mdsMinors(),a:Round[]=[],b:Round[]=[],changed=plaintext.slice();changed[0]^=1;cipher(plaintext,expand(key).roundKeys,undefined,a);cipher(changed,expand(key).roundKeys,undefined,b);let html=table('MixColumns matrix',['row','c0','c1','c2','c3'],MC.map((r,i)=>[String(i),...r.map(x=>x.toString(16).padStart(2,'0'))]))+table('InvMixColumns matrix',['row','c0','c1','c2','c3'],IMC.map((r,i)=>[String(i),...r.map(x=>x.toString(16).padStart(2,'0'))]))+table('Computed matrix product',['row','c0','c1','c2','c3'],product.map((r,i)=>[String(i),...r.map(String)]))+check('matrix-product',product.every((row,r)=>row.every((x,c)=>x===(r===c?1:0))),'MC · IMC = identity.')+check('mds',minors.nonzero===69&&minors.total===69,`${minors.nonzero}/${minors.total} square minors are nonsingular: 16 + 36 + 16 + 1. This gives branch number 5.`)+`<details><summary>Inspect all 69 determinants</summary>${table('Every MixColumns square minor',['Size','Rows','Columns','Determinant'],minors.rows.map(x=>[String(x.size),x.rows.join(','),x.columns.join(','),x.det.toString(16)]))}</details><p>Legend: ◆ means structural dependency; ● means an observed changed byte; ○ means an observed unchanged byte. An unchanged observation does not remove a dependency.</p>`;for(const round of [1,2]){const d=dependencies(round),difference=xor(a[round].output,b[round].output);html+=`<h3>Round ${round}</h3>${check('dependencies-'+round,d.every(x=>x.length===(round===1?4:16)),`Structural dependency count per byte: ${d.map(x=>x.length).join(', ')}.`)}${table(`Round ${round} structural dependencies and observed differences`,['Byte index','◆ Depends on input bytes','Observed difference'],d.map((x,i)=>[String(i),'◆ '+x.join(','),`${difference[i]?'●':'○'} ${hex(difference.slice(i,i+1))}`]))}`;}return html+'<p><a href="https://systemslibrarian.github.io/crypto-lab-aegis-gate/">AEGIS Gate</a> already steps a genuine AES round inside another construction.</p>';}
+import {
+  MC,
+  IMC,
+  matrixProduct,
+  mdsMinors,
+  dependencies,
+  xor,
+  type Block,
+  hex,
+} from "../aes/state";
+import { cipher, type Round } from "../aes/cipher";
+import { expand } from "../aes/keyExpansion";
+import { table, check } from "./common";
+export function act3(key: Block, plaintext: Block) {
+  const product = matrixProduct(MC, IMC),
+    minors = mdsMinors(),
+    a: Round[] = [],
+    b: Round[] = [],
+    changed = plaintext.slice();
+  changed[0] ^= 1;
+  cipher(plaintext, expand(key).roundKeys, undefined, a);
+  cipher(changed, expand(key).roundKeys, undefined, b);
+  let html =
+    table(
+      "MixColumns matrix",
+      ["row", "c0", "c1", "c2", "c3"],
+      MC.map((r, i) => [String(i), ...r.map((x) => x.toString(16).padStart(2, "0"))]),
+    ) +
+    table(
+      "InvMixColumns matrix",
+      ["row", "c0", "c1", "c2", "c3"],
+      IMC.map((r, i) => [String(i), ...r.map((x) => x.toString(16).padStart(2, "0"))]),
+    ) +
+    table(
+      "Computed matrix product",
+      ["row", "c0", "c1", "c2", "c3"],
+      product.map((r, i) => [String(i), ...r.map(String)]),
+    ) +
+    check(
+      "matrix-product",
+      product.every((row, r) => row.every((x, c) => x === (r === c ? 1 : 0))),
+      "MC · IMC = identity.",
+    ) +
+    check(
+      "mds",
+      minors.nonzero === 69 && minors.total === 69,
+      `${minors.nonzero}/${minors.total} square minors are nonsingular: 16 + 36 + 16 + 1. This gives branch number 5.`,
+    ) +
+    `<details><summary>Inspect all 69 determinants</summary>${table(
+      "Every MixColumns square minor",
+      ["Size", "Rows", "Columns", "Determinant"],
+      minors.rows.map((x) => [
+        String(x.size),
+        x.rows.join(","),
+        x.columns.join(","),
+        x.det.toString(16),
+      ]),
+    )}</details><p>Legend: ◆ means structural dependency; ● means an observed changed byte; ○ means an observed unchanged byte. An unchanged observation does not remove a dependency.</p>`;
+  for (const round of [1, 2]) {
+    const d = dependencies(round),
+      difference = xor(a[round].output, b[round].output);
+    html += `<h3>Round ${round}</h3>${check(
+      "dependencies-" + round,
+      d.every((x) => x.length === (round === 1 ? 4 : 16)),
+      `Structural dependency count per byte: ${d.map((x) => x.length).join(", ")}.`,
+    )}${table(
+      `Round ${round} structural dependencies and observed differences`,
+      ["Byte index", "◆ Depends on input bytes", "Observed difference"],
+      d.map((x, i) => [
+        String(i),
+        "◆ " + x.join(","),
+        `${difference[i] ? "●" : "○"} ${hex(difference.slice(i, i + 1))}`,
+      ]),
+    )}`;
+  }
+  return (
+    html +
+    '<p><a href="https://systemslibrarian.github.io/crypto-lab-aegis-gate/">AEGIS Gate</a> already steps a genuine AES round inside another construction.</p>'
+  );
+}
