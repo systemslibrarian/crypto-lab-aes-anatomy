@@ -192,7 +192,7 @@ const cases = [
         file: "src/harness.ts",
         before: "return { broken: await run(false), control: await run(true) }",
         after:
-          "return {broken:await run(false),control:{...await run(false),control:true,rows:[],successes:0}}",
+          "return {broken:await run(false),control:{...await run(false),control:true,rows:[] as HeldoutRow[],successes:0}}",
       },
     ],
     command: [
