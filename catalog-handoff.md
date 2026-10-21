@@ -1,14 +1,55 @@
 # AES Anatomy — catalog handoff
 
-The brief expressly reserves catalog changes for a later pass. No files in `../crypto-lab` were changed.
+This is a reviewable handoff for the catalog maintainer. This PR changes only this lab; it does not publish catalog changes. Source call sites below use the expanded, readable files in this branch.
 
-- **Title:** AES Anatomy. **Level:** Intermediate. **Section:** symmetric. **Categories:** ENCRYPTION | ATTACKS; foundational building-block placement is appropriate. No Start Here badge.
-- **Copy:** Build AES from field arithmetic to full encryption and decryption, then remove one layer and run four concrete attacks beside independently verified real-AES controls.
-- **Chips:** AES-128/192/256 · GF(2⁸) · Key Expansion · Inverse Cipher.
-- **Vocabulary review:** `tools/catalog-vocab.js` already has AES (FIPS 197). The other three chips describe concepts or implementation components, not additional named algorithms; do not add them as algorithms merely to satisfy chip matching. A combined AES-128/192/256 chip maps to AES.
-- **Concept coverage:** item 4, confusion, diffusion and cipher structure. This closes the primitive-internals teaching gap without duplicating implementation-attack labs. Suggested progression: Clock Arithmetic → AES Anatomy → AES Modes → Biham Lens / Matsui Line.
-- **Evidence anchors:** `src/gf/gf256.ts`, `src/aes/sbox.ts`, `src/aes/state.ts`, `src/aes/keyExpansion.ts`, `src/aes/cipher.ts`, `src/attack/affine.ts`, `src/attack/columns.ts`, `src/attack/bytes.ts`. Real S-box use in the key schedule is unchanged in every ablation. `src/crosscheck.ts` uses AES-CBC only as an independent single-block oracle; do not credit this as an AES-CBC teaching exhibit.
-- **Source inspection:** exact neighbor revisions and scope corrections are in `overlap-review.md`. AEGIS Gate already shows a real AES round; the new contribution is the full primitive, schedule, inverse and removal attacks.
-- **Port:** 4746, chosen after checking the committed fleet port registry (through 4745). The fleet-wide regeneration refuses a partial local census; preserve its existing records when registering this lab.
-- **Limits:** attacks are AES-128; whole-cipher and key-schedule traces cover 128/192/256. AES-192 uses FIPS vectors because Chromium WebCrypto does not support it. No EqInvCipher, reduced-round attack, related-key claim, modes tutorial, timing attack, or constant-time implementation is claimed.
-- **Validation:** `mutation-evidence.json`, `performance-evidence.json`, unit tests and browser tests are committed with the lab. Catalog evidence should be generated from the final published source revision, not hand-written or copied from this proposal.
+## Card and placement
+
+| Field | Proposed value |
+| --- | --- |
+| Title | AES Anatomy |
+| Kicker | Build AES, Then Remove a Layer |
+| One-sentence copy (24 words) | Build AES from field arithmetic to full encryption and decryption, then remove one layer and run four concrete attacks beside independently verified real-AES controls. |
+| Exactly four chips | AES-128/192/256 · GF(2⁸) · Key Expansion · Inverse Cipher |
+| `data-category` | `ENCRYPTION \| ATTACKS` — **PROVISIONAL** |
+| `TITLE_TO_SECTION` | `'AES Anatomy': 'symmetric'` (section id `symmetric`) — **PROVISIONAL** |
+| `FOUNDATIONS_TITLES` | Include `'AES Anatomy'`: it teaches the block primitive's internal building blocks — **PROVISIONAL** |
+| `REAL_WORLD_TITLES` | Do not include: TLS is context; the lab does not implement a TLS system — **PROVISIONAL** |
+| `data-level` | `intermediate` — Learners follow byte algebra, key schedules and oracle-only attacks, with visible intermediate steps. |
+| Accent | `#4cc9f0` — **PROVISIONAL**, confirm against the catalog's final category accent |
+| Favicon | 🧱, Unicode `U+1F9F1` — **PROVISIONAL** |
+| Start Here badge | No |
+
+The copy contains fewer than 36 words. The three concept chips after AES do not introduce additional named cipher algorithms. Do not add vocabulary entries merely to force a chip match.
+
+## Executed algorithm evidence
+
+| Algorithm or component | Implementation | Executed call sites and scope |
+| --- | --- | --- |
+| AES-128, AES-192, AES-256 encryption | `src/aes/cipher.ts:26` | `src/ui/act5.ts:8` invokes the full cipher with the selected key; `src/victim.ts:7` supplies the encryption-only capability. |
+| AES InvCipher | `src/aes/cipher.ts:75` | `src/ui/act6.ts:9` runs the keyed inverse; `src/diagnostics.ts:34` checks the selected ablation's inverse. EqInvCipher is described, not implemented. |
+| AES KeyExpansion (all three sizes) | `src/aes/keyExpansion.ts:14` | `src/ui/act4.ts:6` expands the learner's key; `src/ui/act4.ts:11` checks the published key; `src/ui/act5.ts:8` supplies the encryption schedule. |
+| GF(2⁸) multiplication / polynomial extended Euclid | `src/gf/gf256.ts:6`, `src/gf/gf256.ts:35` | `src/ui/act1.ts:17` computes the inverse; `src/ui/act1.ts:18` computes displayed products; `src/aes/state.ts:44` uses field multiplication in the column transform. |
+| AES S-box and inverse S-box | `src/aes/sbox.ts:7`, `src/aes/sbox.ts:10` | `src/aes/sbox.ts:15` constructs the tables; `src/aes/cipher.ts:49` uses the data-path S-box; `src/aes/keyExpansion.ts:37` and `src/aes/keyExpansion.ts:44` keep the real S-box in every key schedule. |
+| ShiftRows / MixColumns and their inverses | `src/aes/state.ts:29`, `src/aes/state.ts:34`, `src/aes/state.ts:47` | `src/aes/cipher.ts:51`, `src/aes/cipher.ts:52` execute the forward layers; `src/aes/cipher.ts:87`, `src/aes/cipher.ts:96` execute the inverse layers. |
+| GF(2) matrix elimination and affine recovery | `src/linalg/gf2.ts:11`, `src/attack/affine.ts:7` | `src/attack/affine.ts:26` inverts the fitted 128-column map; `src/harness.ts:74` invokes the attack with an oracle and attacker-owned key factory. |
+| Known-column transplantation (7c) | `src/attack/columns.ts:3`, `src/attack/columns.ts:15` | `src/harness.ts:75` recovers known pairs; `src/attack/columns.ts:27` supplies the splice candidate function. |
+| Chosen-plaintext byte codebook (7d) | `src/attack/bytes.ts:3` | `src/harness.ts:76` builds byte tables; `src/harness.ts:87` queries candidates on held-out data. |
+| DDT / LAT and MDS diagnostics | `src/aes/sbox.ts:18`, `src/aes/sbox.ts:30`, `src/aes/state.ts:74` | `src/ui/act2.ts:7` and `src/ui/act2.ts:8` compute exhaustive tables; `src/ui/act3.ts:16` computes all 69 minors. These are analyses, not additional ciphers. |
+| AES-CBC (independent oracle wrapper only) | Browser WebCrypto | `src/crosscheck.ts:12` imports the key; `src/crosscheck.ts:16` encrypts with zero IV and uses only the first block. Do not credit a modes teaching exhibit. |
+
+The `data-implements` evidence anchor for AES can be `AES@src/aes/cipher.ts:26`, with the executed call sites above. Known-plaintext and chosen-plaintext attack claims refer only to deliberately weakened AES-128 variants. SHA-256 is used in the claims tests to pin the displayed S-box strings, not as an implemented page algorithm.
+
+## GitHub About and topics
+
+**About (under 350 characters):** Inspect AES-128/192/256 from finite-field arithmetic through key expansion, encryption and decryption. Remove a layer, run oracle-only attacks, and compare independently verified real-AES controls. A seven-act browser teaching lab with FIPS vectors and mutation-tested claims.
+
+**Topics:** `aes`, `aes-128`, `aes-192`, `aes-256`, `cryptography`, `cryptography-education`, `fips-197`, `finite-fields`, `s-box`, `key-expansion`, `typescript`, `vite`, `educational`, `browser-lab`.
+
+## Integration notes and limits
+
+- Suggested progression: Clock Arithmetic → AES Anatomy → AES Modes → Biham Lens / Matsui Line. Concept coverage: confusion, diffusion and cipher structure.
+- Exact inspected neighbor revisions are in `overlap-review.md`. AEGIS Gate already shows a genuine AES round; this lab adds the full primitive, schedule, inverse and removal attacks.
+- Port 4746 was selected from the fleet registry. Preserve existing registry entries when incorporating this lab.
+- Attacks run at AES-128; schedule and whole-cipher traces cover 128/192/256. AES-192 uses FIPS vectors because Chromium WebCrypto does not support it.
+- No EqInvCipher implementation, real-AES reduced-round attack, related-key attack, modes tutorial, timing attack or constant-time implementation is claimed.
+- Generate catalog evidence from the reviewed source revision. `mutation-evidence.json` records this branch's executed mutation checks; `performance-evidence.json` is the earlier timing measurement, not a new benchmark of this PR.

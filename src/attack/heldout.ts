@@ -1,3 +1,0 @@
-/** Verifier-only stream. Attack modules may not import this module or receive its instances. */
-import {seeded} from '../random';import {equal,type Block} from '../aes/state';import type {KnownPair} from './types';
-export class HeldoutGenerator{private next:ReturnType<typeof seeded>;constructor(seed:number){this.next=seeded(seed);}block():Block{return this.next();}splice(pairs:KnownPair[]):Block{for(let retry=0;retry<10000;retry++){const choices=this.next(4).map(x=>x%pairs.length);if(new Set(choices).size<2)continue;const target=new Uint8Array(16);for(let c=0;c<4;c++)target.set(pairs[choices[c]].plaintext.slice(c*4,c*4+4),c*4);if(pairs.every(p=>!equal(p.plaintext,target)))return target;}throw Error('Could not construct a fresh splice target.');}}

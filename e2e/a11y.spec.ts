@@ -1,2 +1,58 @@
-import {test,expect} from '@playwright/test';import {boot,scan,watchPageErrors,expectBaselineNotStale} from './gate';
-for(const width of [1280,320])test(`All seven acts and edge states at ${width}`,async({page})=>{test.setTimeout(600000);await page.setViewportSize({width,height:900});const errors=watchPageErrors(page);await boot(page,'light');if(process.env.QA_SCREENSHOTS)await page.screenshot({path:`/tmp/aes-${width}.png`,fullPage:true});await page.locator('.cl-skip-link').focus();await scan(page,'focused skip link');for(let n=1;n<=7;n++){await page.locator('#tab-'+n).click();for(const summary of await page.locator(`#act-${n} details summary`).all())await summary.click();await scan(page,`act ${n} expanded`);}await page.locator('#tab-1').click();await page.locator('#byte-a').fill('00');await page.locator('#compute-1').click();await scan(page,'zero inverse');await page.locator('#tab-6').click();await page.locator('#inverse-mode').selectOption('wrongMix');await scan(page,'inverse mismatch');await page.locator('#tab-7').click();await page.route('**/attack.worker-*.js',route=>route.fulfill({status:200,contentType:'text/javascript',body:'self.onmessage=()=>{};'}));await page.locator('input[value=affine]').check();await page.locator('#run-attack').click();await expect(page.locator('#notice-7')).toContainText('Attack running');await scan(page,'running with worker response held for inspection');await page.locator('#cancel-attack').click();await page.unroute('**/attack.worker-*.js');for(const variant of ['noSub','affine','noShift','noMix']){await page.locator(`input[value=${variant}]`).check();await page.locator('#run-attack').click();await expect(page.locator('#attack-verdict')).toBeVisible();for(const summary of await page.locator('#result-7 details summary').all())await summary.click();await scan(page,`completed ${variant}`);}await page.locator('#byte-count').fill('16');await page.locator('#run-attack').click();await expect(page.locator('#attack-verdict')).toHaveAttribute('data-verdict','partial');await scan(page,'partial codebook');await page.locator('#cancel-attack').click();await scan(page,'cancelled');await page.locator('main > details summary').click();await scan(page,'scope links');expectBaselineNotStale();expect(errors).toEqual([]);});
+import { test, expect } from "@playwright/test";
+import { boot, scan, watchPageErrors, expectBaselineNotStale } from "./gate";
+for (const width of [1280, 320])
+  test(`All seven acts and edge states at ${width}`, async ({ page }) => {
+    test.setTimeout(600000);
+    await page.setViewportSize({ width, height: 900 });
+    const errors = watchPageErrors(page);
+    await boot(page, "light");
+    if (process.env.QA_SCREENSHOTS)
+      await page.screenshot({ path: `/tmp/aes-${width}.png`, fullPage: true });
+    await page.locator(".cl-skip-link").focus();
+    await scan(page, "focused skip link");
+    for (let n = 1; n <= 7; n++) {
+      await page.locator("#tab-" + n).click();
+      for (const summary of await page.locator(`#act-${n} details summary`).all())
+        await summary.click();
+      await scan(page, `act ${n} expanded`);
+    }
+    await page.locator("#tab-1").click();
+    await page.locator("#byte-a").fill("00");
+    await page.locator("#compute-1").click();
+    await scan(page, "zero inverse");
+    await page.locator("#tab-6").click();
+    await page.locator("#inverse-mode").selectOption("wrongMix");
+    await scan(page, "inverse mismatch");
+    await page.locator("#tab-7").click();
+    await page.route("**/attack.worker-*.js", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/javascript",
+        body: "self.onmessage=()=>{};",
+      }),
+    );
+    await page.locator("input[value=affine]").check();
+    await page.locator("#run-attack").click();
+    await expect(page.locator("#notice-7")).toContainText("Attack running");
+    await scan(page, "running with worker response held for inspection");
+    await page.locator("#cancel-attack").click();
+    await page.unroute("**/attack.worker-*.js");
+    for (const variant of ["noSub", "affine", "noShift", "noMix"]) {
+      await page.locator(`input[value=${variant}]`).check();
+      await page.locator("#run-attack").click();
+      await expect(page.locator("#attack-verdict")).toBeVisible();
+      for (const summary of await page.locator("#result-7 details summary").all())
+        await summary.click();
+      await scan(page, `completed ${variant}`);
+    }
+    await page.locator("#byte-count").fill("16");
+    await page.locator("#run-attack").click();
+    await expect(page.locator("#attack-verdict")).toHaveAttribute("data-verdict", "partial");
+    await scan(page, "partial codebook");
+    await page.locator("#cancel-attack").click();
+    await scan(page, "cancelled");
+    await page.locator("main > details summary").click();
+    await scan(page, "scope links");
+    expectBaselineNotStale();
+    expect(errors).toEqual([]);
+  });

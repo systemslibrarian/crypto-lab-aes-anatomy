@@ -1,3 +1,28 @@
-import {equal,type Block} from '../aes/state';import type {EncryptionOracle,OwnKeyFactory,KnownPair,Recovery} from './types';
-export function splice(pairs:KnownPair[],target:Block):Block{if(pairs.length<3)throw Error('Collect at least three pairs.');const out=new Uint8Array(16);for(let c=0;c<4;c++){const pair=pairs.find(p=>equal(p.plaintext.slice(c*4,c*4+4),target.slice(c*4,c*4+4)));if(!pair)throw Error(`Splice column ${c} appears in no known pair; refusing to guess.`);out.set(pair.ciphertext.slice(c*4,c*4+4),c*4);}return out;}
-export async function recoverColumns(oracle:EncryptionOracle,choosePlaintext:OwnKeyFactory,count=3):Promise<Recovery>{if(count<3||count>20)throw Error('Collect at least three pairs (at most 20 in this lab).');const known:KnownPair[]=[];for(let i=0;i<count;i++){const plaintext=choosePlaintext();known.push({plaintext,ciphertext:await oracle(plaintext)});}return {kind:'forge',known,candidate:(target:Block)=>splice(known,target)};}
+import { equal, type Block } from "../aes/state";
+import type { EncryptionOracle, OwnKeyFactory, KnownPair, Recovery } from "./types";
+export function splice(pairs: KnownPair[], target: Block): Block {
+  if (pairs.length < 3) throw Error("Collect at least three pairs.");
+  const out = new Uint8Array(16);
+  for (let c = 0; c < 4; c++) {
+    const pair = pairs.find((p) =>
+      equal(p.plaintext.slice(c * 4, c * 4 + 4), target.slice(c * 4, c * 4 + 4)),
+    );
+    if (!pair) throw Error(`Splice column ${c} appears in no known pair; refusing to guess.`);
+    out.set(pair.ciphertext.slice(c * 4, c * 4 + 4), c * 4);
+  }
+  return out;
+}
+export async function recoverColumns(
+  oracle: EncryptionOracle,
+  choosePlaintext: OwnKeyFactory,
+  count = 3,
+): Promise<Recovery> {
+  if (count < 3 || count > 20)
+    throw Error("Collect at least three pairs (at most 20 in this lab).");
+  const known: KnownPair[] = [];
+  for (let i = 0; i < count; i++) {
+    const plaintext = choosePlaintext();
+    known.push({ plaintext, ciphertext: await oracle(plaintext) });
+  }
+  return { kind: "forge", known, candidate: (target: Block) => splice(known, target) };
+}

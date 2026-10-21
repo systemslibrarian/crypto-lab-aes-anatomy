@@ -1,4 +1,67 @@
-import {SBOX} from './sbox';import {xtime} from '../gf/gf256';
-export interface WordStep{index:number;word:Uint8Array;previous:Uint8Array;rotated?:Uint8Array;substituted?:Uint8Array;rcon?:number;transformed:Uint8Array;back?:Uint8Array;extra:boolean}
-export function expand(key:Uint8Array){if(![16,24,32].includes(key.length))throw Error(`AES needs 16, 24 or 32 key bytes; found ${key.length}.`);const Nk=key.length/4,Nr=Nk+6,words:Uint8Array[]=[],steps:WordStep[]=[];let rcon=1;for(let i=0;i<4*(Nr+1);i++){if(i<Nk){const word=key.slice(4*i,4*i+4);words.push(word);steps.push({index:i,word,previous:word,transformed:word,extra:false});continue;}const previous=words[i-1].slice();let temp=previous.slice(),rotated:Uint8Array|undefined,substituted:Uint8Array|undefined,rc:number|undefined,extra=false;if(i%Nk===0){rotated=Uint8Array.from([temp[1],temp[2],temp[3],temp[0]]);substituted=rotated.map(x=>SBOX[x]);temp=substituted.slice();rc=rcon;temp[0]^=rcon;rcon=xtime(rcon);}else if(Nk===8&&i%Nk===4){extra=true;substituted=temp.map(x=>SBOX[x]);temp=substituted.slice();}const back=words[i-Nk],word=Uint8Array.from(temp,(x,j)=>x^back[j]);words.push(word);steps.push({index:i,word,previous,rotated,substituted,rcon:rc,transformed:temp,back,extra});}const roundKeys=Array.from({length:Nr+1},(_,r)=>Uint8Array.from(words.slice(4*r,4*r+4).flatMap(x=>Array.from(x))));return {Nk,Nr,words,steps,roundKeys};}
+import { SBOX } from "./sbox";
+import { xtime } from "../gf/gf256";
+export interface WordStep {
+  index: number;
+  word: Uint8Array;
+  previous: Uint8Array;
+  rotated?: Uint8Array;
+  substituted?: Uint8Array;
+  rcon?: number;
+  transformed: Uint8Array;
+  back?: Uint8Array;
+  extra: boolean;
+}
+export function expand(key: Uint8Array) {
+  if (![16, 24, 32].includes(key.length))
+    throw Error(`AES needs 16, 24 or 32 key bytes; found ${key.length}.`);
+  const Nk = key.length / 4,
+    Nr = Nk + 6,
+    words: Uint8Array[] = [],
+    steps: WordStep[] = [];
+  let rcon = 1;
+  for (let i = 0; i < 4 * (Nr + 1); i++) {
+    if (i < Nk) {
+      const word = key.slice(4 * i, 4 * i + 4);
+      words.push(word);
+      steps.push({ index: i, word, previous: word, transformed: word, extra: false });
+      continue;
+    }
+    const previous = words[i - 1].slice();
+    let temp = previous.slice(),
+      rotated: Uint8Array | undefined,
+      substituted: Uint8Array | undefined,
+      rc: number | undefined,
+      extra = false;
+    if (i % Nk === 0) {
+      rotated = Uint8Array.from([temp[1], temp[2], temp[3], temp[0]]);
+      substituted = rotated.map((x) => SBOX[x]);
+      temp = substituted.slice();
+      rc = rcon;
+      temp[0] ^= rcon;
+      rcon = xtime(rcon);
+    } else if (Nk === 8 && i % Nk === 4) {
+      extra = true;
+      substituted = temp.map((x) => SBOX[x]);
+      temp = substituted.slice();
+    }
+    const back = words[i - Nk],
+      word = Uint8Array.from(temp, (x, j) => x ^ back[j]);
+    words.push(word);
+    steps.push({
+      index: i,
+      word,
+      previous,
+      rotated,
+      substituted,
+      rcon: rc,
+      transformed: temp,
+      back,
+      extra,
+    });
+  }
+  const roundKeys = Array.from({ length: Nr + 1 }, (_, r) =>
+    Uint8Array.from(words.slice(4 * r, 4 * r + 4).flatMap((x) => Array.from(x))),
+  );
+  return { Nk, Nr, words, steps, roundKeys };
+}
 // [extension] point: removing Rcon is a separate key-schedule experiment, not implemented.

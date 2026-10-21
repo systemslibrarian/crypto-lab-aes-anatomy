@@ -19,6 +19,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -26,10 +27,10 @@ jobs:
           node-version: 24
       - run: npm ci
       - run: npx tsc --noEmit
-      - run: npm test --if-present
+      - run: npm test
       - run: npm run build
       - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
       - name: E2E + accessibility gate (WCAG A/AA, axe-core)
         run: npm run test:e2e
       - uses: actions/upload-pages-artifact@v5
@@ -88,8 +89,7 @@ jobs:
           # and the site would keep serving the previous build. Ask for it explicitly;
           # a workflow_dispatch through the API is not suppressed. The dispatched run
           # is the same gate-then-deploy pipeline, so a bad merge still ships nothing.
-          gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main \
-            || echo "::warning::deploy dispatch failed; run pages.yml by hand"
+          gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
