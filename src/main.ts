@@ -19,6 +19,7 @@ import { act3 } from "./ui/act3";
 import { act4, wordStep } from "./ui/act4";
 import { act5 } from "./ui/act5";
 import { act6 } from "./ui/act6";
+import { act8 } from "./ui/act8";
 import { grid } from "./ui/common";
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T,
   val = (id: string) => el<HTMLInputElement>(id).value;
@@ -88,6 +89,15 @@ const specs = [
         )
         .join("") +
       '</div></fieldset><div class="controls"><label>Known pairs for no ShiftRows<input id="pair-count" type="number" min="3" max="20" value="3" title="At least three pairs are required; targets must splice known columns."></label><label>Chosen plaintexts for no MixColumns<input id="byte-count" type="number" min="1" max="256" value="256" title="Fewer than 256 gives a partial codebook. Unknown bytes are shown as dots, never guessed."></label></div><div class="actions"><button id="attack-fixture">Use seeded affine fixture</button><button id="run-attack">Run attack</button><button id="cancel-attack">Cancel attack</button></div><p>SubWord always uses the real S-box. Only the data path is changed. These experiments run at AES-128.</p>',
+  {
+    title: "Inject a fault, recover the key",
+    intro:
+      "A transient byte fault just before round-9 MixColumns leaves a structured difference in four ciphertext bytes. Compare correct and faulty outputs, narrow last-round key candidates with the inverse S-box, then reverse the AES-128 key schedule.",
+    predict:
+      "If each returned ciphertext byte is still a full 8-bit value, what structure could two faulty encryptions reveal about four bytes of the last round key?",
+    controls:
+      '<div class="actions"><button id="run-dfa" class="primary">Run differential fault recovery</button></div><p>This bounded exercise knows the injected byte location, but the attack is not given the victim key or the nonzero fault value.</p>',
+  },
   },
 ];
 const steps = el("steps"),
@@ -127,7 +137,7 @@ function stop(reason: string) {
 }
 function retireAll(reason: string) {
   stop(reason);
-  for (let i = 1; i <= 7; i++) {
+  for (let i = 1; i <= 8; i++) {
     el("result-" + i).replaceChildren();
     notice(i, reason);
   }
@@ -199,6 +209,10 @@ function compute(i: number) {
         notice(7, "Choose a deliberately broken layer, then run its attack.");
         return;
       }
+      if (i === 8) {
+        notice(8, "Run the DFA recovery to generate fresh correct/faulty ciphertext pairs for the current AES-128 inputs.");
+        return;
+      }
     }
     initialized.add(i);
     notice(i, `Computed for the current inputs in ${(performance.now() - start).toFixed(1)} ms.`);
@@ -234,9 +248,9 @@ specs.forEach((spec, index) => {
   panel.setAttribute("aria-labelledby", b.id);
   panel.tabIndex = 0;
   panel.hidden = i !== 1;
-  panel.innerHTML = `<h2>${i}. ${spec.title}</h2><p class="intro">${spec.intro}</p>${spec.predict ? `<details class="predict-prompt"><summary>Predict before revealing</summary><p>${spec.predict}</p></details>` : ""}${spec.controls}${i === 7 ? "" : `<button id="compute-${i}" class="primary">Compute this act</button>`}<p id="notice-${i}" role="status" aria-live="polite"></p><div id="result-${i}" role="status" aria-live="polite"></div>`;
+  panel.innerHTML = `<h2>${i}. ${spec.title}</h2><p class="intro">${spec.intro}</p>${spec.predict ? `<details class="predict-prompt"><summary>Predict before revealing</summary><p>${spec.predict}</p></details>` : ""}${spec.controls}${i === 7 || i === 8 ? "" : `<button id="compute-${i}" class="primary">Compute this act</button>`}<p id="notice-${i}" role="status" aria-live="polite"></p><div id="result-${i}" role="status" aria-live="polite"></div>`;
   acts.append(panel);
-  if (i !== 7) el("compute-" + i).onclick = () => compute(i);
+  if (i !== 7 && i !== 8) el("compute-" + i).onclick = () => compute(i);
 });
 for (const id of ["key-size", "key", "plaintext", "seed"]) {
   el(id).addEventListener(id === "key-size" ? "change" : "input", sync);
@@ -260,6 +274,17 @@ for (const id of ["byte-a", "byte-b"])
   });
 el("affine-only").addEventListener("change", () => compute(2));
 el("inverse-mode").addEventListener("change", () => compute(6));
+el("run-dfa").onclick = () => {
+  try {
+    const v = input();
+    el("result-8").innerHTML = act8(v.key, v.plaintext);
+    initialized.add(8);
+    notice(8, "DFA recovery and independent recovered-key verification complete.");
+  } catch (e) {
+    el("result-8").replaceChildren();
+    notice(8, (e as Error).message);
+  }
+};
 el("layer-step").onclick = () => {
   try {
     const { plaintext } = input(),
@@ -394,7 +419,7 @@ steps.addEventListener("keydown", (e) => {
   if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
   e.preventDefault();
   activate(
-    e.key === "Home" ? 0 : e.key === "End" ? 6 : (selected + (e.key === "ArrowRight" ? 1 : 6)) % 7,
+    e.key === "Home" ? 0 : e.key === "End" ? 7 : (selected + (e.key === "ArrowRight" ? 1 : 7)) % 8,
   );
   (steps.children[selected] as HTMLElement).focus();
 });
