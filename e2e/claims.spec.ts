@@ -397,8 +397,21 @@ test("DFA display independently verifies recovered AES-128 key and candidate nar
   });
   expect(independent).toBe(await page.locator("#dfa-correct").innerText());
 
+  const heldoutPlaintext = await page.locator("#dfa-heldout-plaintext").innerText();
+  const heldoutExpected = await page.evaluate(referenceAes, {
+    key: displayedMaster,
+    plaintext: heldoutPlaintext,
+    variant: "real",
+    sbox,
+  });
+  expect(heldoutExpected).toBe(await page.locator("#dfa-heldout-correct").innerText());
+
+  await expect(root.locator("[data-check=dfa-heldout]")).toHaveAttribute("data-verdict", "pass");
+  await expect(root.locator("[data-check=dfa-recompute]")).toHaveAttribute("data-verdict", "pass");
+  await expect(root.locator("[data-check=dfa-wrong-model]")).toHaveAttribute("data-verdict", "pass");
   await expect(root).toContainText("attack is not given the victim key or the nonzero fault value");
-  await expect(root).toContainText("Fault detection and ineffective-fault leakage are a separate next lesson");
+  await expect(root).toContainText("common-mode fault");
+  await expect(root).toContainText("ineffective-fault leakage is a separate next lesson");
 });
 
 test("Hidden elements never paint in all eight acts and after an attack", async ({ page }) => {
