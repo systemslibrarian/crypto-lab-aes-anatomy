@@ -416,9 +416,62 @@ test("DFA display independently verifies recovered AES-128 key and candidate nar
   await expect(root).toContainText("ineffective-fault leakage is a separate next lesson");
 });
 
-test("Hidden elements never paint in all eight acts and after an attack", async ({ page }) => {
+test("accepted-output fault ranking exposes secret-dependent selection but not the same-size control", async ({ page }) => {
   await boot(page);
-  for (let n = 1; n <= 8; n++) {
+  await page.locator("#tab-9").click();
+  await page.locator("#run-sifa").click();
+
+  const actual = (await page.locator("#key").inputValue()).slice(0, 2).toLowerCase();
+  await expect(page.locator("#sifa-attempts")).toHaveText("2048");
+  await expect(page.locator("#sifa-accepted")).toHaveText("1280");
+  await expect(page.locator("#sifa-rejected")).toHaveText("768");
+  await expect(page.locator("#sifa-returned")).toHaveText("1280");
+  await expect(page.locator("#sifa-actual-rank")).toHaveText("1");
+  await expect(page.locator("#sifa-top-sei")).toHaveText("0.180000");
+  const first = page.locator(".sifa-ranking tbody tr").first();
+  await expect(first.locator("td").nth(1)).toHaveText(actual);
+  await expect(first.locator("td").nth(2)).toHaveText("1024");
+  await expect(first.locator("td").nth(3)).toHaveText("256");
+  await expect(page.locator("[data-check=sifa-biased]")).toHaveAttribute("data-verdict", "pass");
+  await expect(page.locator("[data-check=sifa-same-count]")).toHaveAttribute("data-verdict", "pass");
+
+  const keyByte = parseInt(actual, 16);
+  let zeros = 0;
+  let ones = 0;
+  for (let p = 0; p < 256; p++) {
+    const bit = sbox[p ^ keyByte]! & 1;
+    if (bit === 0) zeros += 8;
+    else ones += 2;
+  }
+  expect(zeros).toBe(1024);
+  expect(ones).toBe(256);
+
+  await page.locator("#sifa-model").selectOption("secret-independent");
+  await expect(page.locator("#result-9")).toBeEmpty();
+  await page.locator("#run-sifa").click();
+  await expect(page.locator("#sifa-accepted")).toHaveText("1280");
+  await expect(page.locator("[data-check=sifa-control]")).toHaveAttribute("data-verdict", "pass");
+  const controlRows = await page.locator(".sifa-ranking tbody tr").evaluateAll((trs) =>
+    trs.map((tr) => Array.from(tr.querySelectorAll("td"), (td) => td.textContent!.trim())),
+  );
+  for (const row of controlRows) {
+    expect(row[2]).toBe("640");
+    expect(row[3]).toBe("640");
+    expect(row[4]).toBe("0.000000");
+  }
+
+  await page.locator("#sifa-model").selectOption("biased-ineffective");
+  await page.locator("#sifa-defense").selectOption("infect-with-validity");
+  await page.locator("#run-sifa").click();
+  await expect(page.locator("#sifa-returned")).toHaveText("2048");
+  await expect(page.locator("#sifa-accepted")).toHaveText("1280");
+  await expect(page.locator("#sifa-actual-rank")).toHaveText("1");
+  await expect(page.locator("#result-9")).toContainText("external validity oracle");
+});
+
+test("Hidden elements never paint in all nine acts and after an attack", async ({ page }) => {
+  await boot(page);
+  for (let n = 1; n <= 9; n++) {
     await page.locator(`#tab-${n}`).click();
     await expectHiddenNotPainted(page);
   }
@@ -446,11 +499,14 @@ test("Valid key change retires every act and all auxiliary results", async ({ pa
   await page.locator("#tab-8").click();
   await page.locator("#run-dfa").click();
   await expect(page.locator("#result-8 [data-check=dfa-master]")).toHaveAttribute("data-verdict", "pass");
-  for (let n = 1; n <= 8; n++) await expect(page.locator(`#result-${n}`)).not.toBeEmpty();
+  await page.locator("#tab-9").click();
+  await page.locator("#run-sifa").click();
+  await expect(page.locator("#result-9 [data-check=sifa-biased]")).toHaveAttribute("data-verdict", "pass");
+  for (let n = 1; n <= 9; n++) await expect(page.locator(`#result-${n}`)).not.toBeEmpty();
   for (const id of ["webcrypto-result", "word-detail", "layer-caption"])
     await expect(page.locator(`#${id}`)).not.toBeEmpty();
   await page.locator("#key").fill("000102030405060708090a0b0c0d0e0f");
-  for (let n = 1; n <= 8; n++) {
+  for (let n = 1; n <= 9; n++) {
     await expect(page.locator(`#result-${n}`)).toBeEmpty();
     await expect(page.locator(`#notice-${n}`)).toContainText("retired");
   }
