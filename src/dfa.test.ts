@@ -94,6 +94,10 @@ it("Eight well-located faulty ciphertexts recover round key 10 and the AES-128 m
   expect(cipher(plaintext(), expand(recoveredMaster).roundKeys)).toEqual(
     cipher(plaintext(), schedule),
   );
+
+  const heldout = plaintext();
+  heldout[0] ^= 0x80;
+  expect(cipher(heldout, expand(recoveredMaster).roundKeys)).toEqual(cipher(heldout, schedule));
 });
 
 it("The attacker API receives ciphertext pairs and location metadata, never the fault value or victim key", () => {
@@ -131,4 +135,15 @@ it("AES-128 round-10 key inversion matches both FIPS examples used by the lab", 
       true,
     );
   }
+});
+
+
+it("Simple recomputation detects a one-sided transient fault but not an identical common-mode fault", () => {
+  const victimKey = key();
+  const pt = plaintext();
+  const schedule = expand(victimKey).roundKeys;
+  const pair = injectRound9MixColumnsFault(victimKey, pt, 0, 0, 1);
+  const recomputed = cipher(pt, schedule);
+  expect(equal(pair.faulty, recomputed)).toBe(false);
+  expect(equal(pair.faulty, pair.faulty)).toBe(true);
 });
