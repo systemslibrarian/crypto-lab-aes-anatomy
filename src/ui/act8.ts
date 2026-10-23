@@ -96,7 +96,9 @@ export function act8(key: Block, plaintext: Block): string {
   const defensePair = injectRound9MixColumnsFault(key, plaintext, 0, 0, 1);
   const recomputed = cipher(plaintext, schedule);
   const oneSidedDetected = !equal(defensePair.faulty, recomputed);
-  const commonModeDetected = !equal(defensePair.faulty, defensePair.faulty);
+  const commonModeFirst = injectRound9MixColumnsFault(key, plaintext, 0, 0, 1);
+  const commonModeSecond = injectRound9MixColumnsFault(key, plaintext, 0, 0, 1);
+  const commonModeDetected = !equal(commonModeFirst.faulty, commonModeSecond.faulty);
 
   const changedModelFirst = injectRound9MixColumnsFault(key, plaintext, 0, 1, 1);
   const changedModelSecond = injectRound9MixColumnsFault(key, plaintext, 0, 1, 2);
