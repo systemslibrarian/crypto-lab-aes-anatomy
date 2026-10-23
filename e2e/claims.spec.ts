@@ -348,6 +348,7 @@ test("Invalid input lengths, unsupported192, cancellation, and mid-flight retire
   await expect(page.locator('#result-9 [data-verdict="wrong-key-size"]')).toContainText(
     "AES-128 only",
   );
+  await page.locator("#tab-5").click();
   await page.locator("#plaintext").fill("aa");
   await page.locator("#compute-5").click();
   await expect(page.locator("#notice-5")).toContainText("No padding or truncation");
