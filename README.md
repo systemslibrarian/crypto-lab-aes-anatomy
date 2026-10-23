@@ -2,7 +2,7 @@
 
 ## What It Is
 
-A seven-act, inspectable implementation of AES-128, AES-192 and AES-256. Build finite-field arithmetic and the S-box, trace every round and inverse, then remove one layer and run an oracle-only attack beside the same attack on full AES. Real AES is the default; broken variants are opt-in teaching experiments.
+An eight-act, inspectable implementation of AES-128, AES-192 and AES-256. Build finite-field arithmetic and the S-box, trace every round and inverse, then remove one layer and run an oracle-only attack beside the same attack on full AES. Real AES is the default; broken variants are opt-in teaching experiments.
 
 ## Exhibits
 
@@ -13,6 +13,7 @@ A seven-act, inspectable implementation of AES-128, AES-192 and AES-256. Build f
 5. **The whole cipher:** every round’s intermediate states, the omitted final MixColumns, and independent browser WebCrypto checks.
 6. **Reverse the cipher:** step the inverse, then deliberately use forward keys or the wrong column matrix and observe the mismatch.
 7. **Remove a layer:** affine inversion from one known pair, known-column transplantation, or a 256-query byte codebook. All four attacks show 32 fresh held-out successes and 32 failing control rows for full AES.
+8. **Inject a fault, recover the key:** inject a declared one-byte fault before AES-128 round-9 MixColumns, compare correct/faulty ciphertexts, filter last-round-key quartets with inverse-S-box differentials, recover round key 10 from eight well-located faulty ciphertexts, reverse the key schedule, and verify the master key on a held-out plaintext. A recomputation example catches a one-sided fault but explicitly shows its common-mode limit; a wrong fault-location model fails without a recovery claim.
 
 ## When to Use It
 
@@ -24,13 +25,15 @@ Use this lab to understand what each AES layer contributes and to distinguish in
 
 ## What Can Go Wrong
 
-Wrong byte order, a missing AES-256 key-schedule operation, retaining MixColumns in the last round, or using the wrong inverse can produce plausible-looking bytes. Independent published vectors and browser recomputation catch those errors. A singular linear map in an affine ablation is an implementation alarm, while failure to find a linear model for full AES is an expected control outcome.
+Wrong byte order, a missing AES-256 key-schedule operation, retaining MixColumns in the last round, using the wrong inverse, or assuming the wrong fault location can produce plausible-looking bytes. Independent published vectors and browser recomputation catch those errors. A singular linear map in an affine ablation is an implementation alarm, while failure to find a linear model for full AES is an expected control outcome.
 
 The affine-only fixture has mean avalanche 61.5 bits, complete byte dependency computed from the keyed cipher’s 128 basis columns after two rounds, and a working keyed inverse. It is nevertheless broken by one known pair. Every displayed control row is computed and checked; a green-looking average is not a security argument. Partial byte codebooks retain unknown bytes as dots, and an absent splice column is refused.
 
 ## Real-World Usage
 
 AES is specified by [FIPS 197-upd1 (2023)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197-upd1.pdf). [RFC 8446 §9.1](https://www.rfc-editor.org/rfc/rfc8446.html#section-9.1) requires TLS 1.3 implementations to support TLS_AES_128_GCM_SHA256; this is a support requirement, not a claim about measured HTTPS traffic. Modes and authenticated encryption are separate from the block primitive taught here.
+
+The DFA exercise follows the classic late-round AES fault equations described by Dusart, Letourneux & Vivolo, *Differential Fault Analysis on A.E.S.* (ePrint 2003/010): a one-byte fault before the penultimate-round MixColumns spreads to four bytes, and inverse-S-box relations constrain the last-round key. This browser model uses a known logical fault location and unknown nonzero fault value; it is not a physical fault-injection claim.
 
 Source data in `src/data/fips197.json` was transcribed from the standard’s S-box tables, all Appendix A expanded words, and Appendix B intermediate states. Appendix C vectors come from the superseded [FIPS 197 (2001)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197.pdf); the 2023 Appendix C instead points to online examples. No textbook figures, exercises or prose are reproduced.
 
@@ -62,9 +65,9 @@ node scripts/check-mutations.mjs
 node scripts/measure-performance.mjs
 ```
 
-Thirty-one unit cases check all FIPS words and intermediate states, 400 seeded WebCrypto comparisons, 200 AES-192 round trips, exhaustive finite-field facts, all 69 minors, 200 seeded ablation-property cases, oracle import/arity and victim-key independence boundaries, held-out ordering/transcript separation, a memorising-attack canary, independently reconstructed invertible controls, singular and partial-codebook refusals, and the negative fixture. Seventeen browser claims independently recompute all attack/control rows inside `page.evaluate`, inspect all key words and both S-box tables (including fixed SHA-256 digests), verify every AddRoundKey XOR and field computation, and check verdict classes, score denominators, hidden panels and complete retirement. Two accessibility drives scan all seven acts and expanded results at desktop and 320px: axe A/AA and landmarks, measured visible/hidden text and nontext contrast, keyboard scrollers, focus and reflow. The nontext baseline is empty.
+Thirty-one unit cases check all FIPS words and intermediate states, 400 seeded WebCrypto comparisons, 200 AES-192 round trips, exhaustive finite-field facts, all 69 minors, 200 seeded ablation-property cases, oracle import/arity and victim-key independence boundaries, held-out ordering/transcript separation, a memorising-attack canary, independently reconstructed invertible controls, singular and partial-codebook refusals, and the negative fixture. Seventeen browser claims independently recompute all attack/control rows inside `page.evaluate`, inspect all key words and both S-box tables (including fixed SHA-256 digests), verify every AddRoundKey XOR and field computation, and check verdict classes, score denominators, hidden panels and complete retirement. Two accessibility drives scan all eight acts and expanded results at desktop and 320px: axe A/AA and landmarks, measured visible/hidden text and nontext contrast, keyboard scrollers, focus and reflow. The nontext baseline is empty.
 
-Thirty-three scripted mutations cover the original twenty cases (replacing the name-based key leak with a harness leak), every audit survivor, and the additional LAT, inverse-matrix, collapse, round-trip, splice, dependency and larger-key display regressions. Each must build into a different artifact, fail a named assertion with retries disabled, restore byte-for-byte, and pass its owning test again. `mutation-evidence.json` records the executed results and named owning tests; [AUDIT_VERIFICATION.md](AUDIT_VERIFICATION.md) maps every new case to its owner. Full-suite results: **31/31 unit, 17/17 claims, 2/2 accessibility, zero skipped; 33 of 33 mutations killed.** The AES-256-only mutant also runs AES-128 controls to prove those paths still pass. GitHub Pages deployment depends on the complete unit/build/browser gate; grouped Dependabot changes use that same gate and explicitly dispatch deployment after merge.
+Thirty-three scripted mutations cover the original twenty cases (replacing the name-based key leak with a harness leak), every audit survivor, and the additional LAT, inverse-matrix, collapse, round-trip, splice, dependency and larger-key display regressions. Each must build into a different artifact, fail a named assertion with retries disabled, restore byte-for-byte, and pass its owning test again. `mutation-evidence.json` records the executed results and named owning tests; [AUDIT_VERIFICATION.md](AUDIT_VERIFICATION.md) maps every new case to its owner. Baseline before the DFA extension: **31/31 unit, 17/17 claims, 2/2 accessibility, zero skipped; 33 of 33 mutations killed.** The DFA PR adds its own unit/browser claims and mutation owners; the final merged counts are recorded by CI rather than hard-coded here before the gate completes. The AES-256-only mutant also runs AES-128 controls to prove those paths still pass. GitHub Pages deployment depends on the complete unit/build/browser gate; grouped Dependabot changes use that same gate and explicitly dispatch deployment after merge.
 
 ## Performance
 
