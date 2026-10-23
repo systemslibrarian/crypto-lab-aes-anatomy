@@ -20,6 +20,7 @@ import { act4, wordStep } from "./ui/act4";
 import { act5 } from "./ui/act5";
 import { act6 } from "./ui/act6";
 import { act8 } from "./ui/act8";
+import { act9 } from "./ui/act9";
 import { grid } from "./ui/common";
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T,
   val = (id: string) => el<HTMLInputElement>(id).value;
@@ -99,6 +100,15 @@ const specs = [
     controls:
       '<div class="actions"><button id="run-dfa" class="primary">Run differential fault recovery</button></div><p>This bounded exercise knows the injected byte location, but the attack is not given the victim key or the nonzero fault value.</p>',
   },
+  {
+    title: "Keep only accepted outputs, recover a byte",
+    intro:
+      "A detector can suppress visibly faulty outputs and still leak if the chance of an unchanged execution depends on secret state. Rank one AES key byte using only the plaintext values attached to accepted outputs, then compare a secret-independent control with the same sample count.",
+    predict:
+      "If the attacker never sees a faulty ciphertext, can the pattern of which executions survive still depend on the key?",
+    controls:
+      '<div class="controls"><label>Target S-box output bit<select id="sifa-bit"><option value="0">bit 0</option><option value="1">bit 1</option><option value="2">bit 2</option><option value="3">bit 3</option><option value="4">bit 4</option><option value="5">bit 5</option><option value="6">bit 6</option><option value="7">bit 7</option></select></label><label>Fault selection model<select id="sifa-model"><option value="biased-ineffective">Biased ineffective fault</option><option value="secret-independent">Secret-independent control</option></select></label><label>Output handling<select id="sifa-defense"><option value="reject">Reject detected faults</option><option value="infect-with-validity">Infect outputs + external validity oracle</option></select></label></div><div class="actions"><button id="run-sifa" class="primary">Run accepted-output ranking</button></div><p>The ranker gets accepted plaintext bytes and the selected bit only. It does not receive the victim key or any faulty ciphertext value.</p>',
+  },
 ];
 const steps = el("steps"),
   acts = el("acts");
@@ -137,7 +147,7 @@ function stop(reason: string) {
 }
 function retireAll(reason: string) {
   stop(reason);
-  for (let i = 1; i <= 8; i++) {
+  for (let i = 1; i <= 9; i++) {
     el("result-" + i).replaceChildren();
     notice(i, reason);
   }
@@ -213,6 +223,10 @@ function compute(i: number) {
         notice(8, "Run the DFA recovery to generate fresh correct/faulty ciphertext pairs for the current AES-128 inputs.");
         return;
       }
+      if (i === 9) {
+        notice(9, "Run the accepted-output ranking or change the fault model to compare the same-size secret-independent control.");
+        return;
+      }
     }
     initialized.add(i);
     notice(i, `Computed for the current inputs in ${(performance.now() - start).toFixed(1)} ms.`);
@@ -248,9 +262,9 @@ specs.forEach((spec, index) => {
   panel.setAttribute("aria-labelledby", b.id);
   panel.tabIndex = 0;
   panel.hidden = i !== 1;
-  panel.innerHTML = `<h2>${i}. ${spec.title}</h2><p class="intro">${spec.intro}</p>${spec.predict ? `<details class="predict-prompt"><summary>Predict before revealing</summary><p>${spec.predict}</p></details>` : ""}${spec.controls}${i === 7 || i === 8 ? "" : `<button id="compute-${i}" class="primary">Compute this act</button>`}<p id="notice-${i}" role="status" aria-live="polite"></p><div id="result-${i}" role="status" aria-live="polite"></div>`;
+  panel.innerHTML = `<h2>${i}. ${spec.title}</h2><p class="intro">${spec.intro}</p>${spec.predict ? `<details class="predict-prompt"><summary>Predict before revealing</summary><p>${spec.predict}</p></details>` : ""}${spec.controls}${i === 7 || i === 8 || i === 9 ? "" : `<button id="compute-${i}" class="primary">Compute this act</button>`}<p id="notice-${i}" role="status" aria-live="polite"></p><div id="result-${i}" role="status" aria-live="polite"></div>`;
   acts.append(panel);
-  if (i !== 7 && i !== 8) el("compute-" + i).onclick = () => compute(i);
+  if (i !== 7 && i !== 8 && i !== 9) el("compute-" + i).onclick = () => compute(i);
 });
 for (const id of ["key-size", "key", "plaintext", "seed"]) {
   el(id).addEventListener(id === "key-size" ? "change" : "input", sync);
@@ -283,6 +297,27 @@ el("run-dfa").onclick = () => {
   } catch (e) {
     el("result-8").replaceChildren();
     notice(8, (e as Error).message);
+  }
+};
+function retireSifa(reason: string) {
+  el("result-9").replaceChildren();
+  initialized.delete(9);
+  notice(9, reason);
+}
+for (const id of ["sifa-bit", "sifa-model", "sifa-defense"])
+  el(id).addEventListener("change", () => retireSifa("Fault experiment changed: prior ranking retired."));
+el("run-sifa").onclick = () => {
+  try {
+    const v = input();
+    const bit = Number(val("sifa-bit"));
+    const model = val("sifa-model") as "biased-ineffective" | "secret-independent";
+    const defense = val("sifa-defense") as "reject" | "infect-with-validity";
+    el("result-9").innerHTML = act9(v.key, bit, model, defense);
+    initialized.add(9);
+    notice(9, "Accepted-output ranking and control statistics computed from the current AES-128 key.");
+  } catch (e) {
+    el("result-9").replaceChildren();
+    notice(9, (e as Error).message);
   }
 };
 el("layer-step").onclick = () => {
@@ -419,7 +454,7 @@ steps.addEventListener("keydown", (e) => {
   if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
   e.preventDefault();
   activate(
-    e.key === "Home" ? 0 : e.key === "End" ? 7 : (selected + (e.key === "ArrowRight" ? 1 : 7)) % 8,
+    e.key === "Home" ? 0 : e.key === "End" ? 8 : (selected + (e.key === "ArrowRight" ? 1 : 8)) % 9,
   );
   (steps.children[selected] as HTMLElement).focus();
 });
