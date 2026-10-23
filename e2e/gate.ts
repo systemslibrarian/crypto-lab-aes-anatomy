@@ -15,7 +15,7 @@ export const NARROW = { width: 380, height: 800 };
  * 1. Emulate reduced motion before navigation and verify the preference in the
  *    page. Do not inject CSS that would bypass `.state-stepped .state-byte` or
  *    the production stylesheet's animation and transition rules.
- * 2. Reach the seven acts by clicking their tabs. Open disclosures through
+ * 2. Reach the eight acts by clicking their tabs. Open disclosures through
  *    their summaries; retain `[hidden]` so every scan reflects a reachable UI.
  * 3. Drive named controls and wait for observable results. The a11y spec scans
  *    all acts, expanded results, zero inverse, inverse mismatch, running and
@@ -200,7 +200,7 @@ export async function boot(page: Page, theme: 'dark' | 'light' = 'dark'): Promis
   expect(await page.evaluate(()=>matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true);
   await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
   await expect(page.locator('h1')).toHaveCount(1);
-  await expect(page.getByRole('tab')).toHaveCount(7);
+  await expect(page.getByRole('tab')).toHaveCount(8);
   await expect(page.locator('#state-grid .state-byte')).toHaveCount(16);
   await assertSingleBanner(page);await assertListSemantics(page);await settle(page);
 }
@@ -495,7 +495,7 @@ export async function scan(page: Page, label: string): Promise<void> {
   // than WCAG-tagged, so `withTags` alone does not reach them — and this page
   // has the shape they catch: the shared `<header role="banner">` with its
   // navigation sits above `<main id="app">`. Main contains the hero and state
-  // asides, the seven-act tablist, result panels, scope links and footer.
+  // asides, the eight-act tablist, result panels, scope links and footer.
   const wcag = await new AxeBuilder({ page }).withTags(TAGS).analyze();
   const landmarks = await new AxeBuilder({ page })
     .withRules([
