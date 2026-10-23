@@ -78,14 +78,44 @@ export function act8(key: Block, plaintext: Block): string {
   let recoveredMaster: Block | null = null;
   let masterMatches = false;
   let reencryptionMatches = false;
+  let heldoutMatches = false;
+  const heldoutPlaintext = plaintext.slice();
+  heldoutPlaintext[0] ^= 0x80;
+  const heldoutVictim = cipher(heldoutPlaintext, schedule);
 
   if (allUnique) {
     recoveredMaster = invertAes128Round10Key(recoveredRound10);
     masterMatches = equal(recoveredMaster, key);
+    const recoveredSchedule = expand(recoveredMaster).roundKeys;
     reencryptionMatches =
       referenceCorrect !== null &&
-      equal(cipher(plaintext, expand(recoveredMaster).roundKeys), referenceCorrect);
+      equal(cipher(plaintext, recoveredSchedule), referenceCorrect);
+    heldoutMatches = equal(cipher(heldoutPlaintext, recoveredSchedule), heldoutVictim);
   }
+
+  const defensePair = injectRound9MixColumnsFault(key, plaintext, 0, 0, 1);
+  const recomputed = cipher(plaintext, schedule);
+  const oneSidedDetected = !equal(defensePair.faulty, recomputed);
+  const commonModeDetected = !equal(defensePair.faulty, defensePair.faulty);
+
+  const changedModelFirst = injectRound9MixColumnsFault(key, plaintext, 0, 1, 1);
+  const changedModelSecond = injectRound9MixColumnsFault(key, plaintext, 0, 1, 2);
+  const wrongModelSurvivors = intersectQuartets(
+    recoverRound10Quartets(
+      { correct: changedModelFirst.correct, faulty: changedModelFirst.faulty },
+      0,
+      0,
+    ),
+    recoverRound10Quartets(
+      { correct: changedModelSecond.correct, faulty: changedModelSecond.faulty },
+      0,
+      0,
+    ),
+  );
+  const trueColumnZero = affectedCipherPositions(0).map((position) => actualRound10[position]!);
+  const wrongModelContainsTruth = wrongModelSurvivors.some((candidate) =>
+    candidate.bytes.every((byte, i) => byte === trueColumnZero[i]),
+  );
 
   const correctHex = referenceCorrect ? hex(referenceCorrect) : "—";
 
@@ -137,7 +167,29 @@ export function act8(key: Block, plaintext: Block): string {
         ? "Independent verification: re-expanding the recovered master key and encrypting the current plaintext reproduces the correct ciphertext."
         : "Recovered-key re-encryption did not reproduce the correct ciphertext.",
     ) +
+    `<p>Held-out plaintext: <code id="dfa-heldout-plaintext">${hex(heldoutPlaintext)}</code>; victim ciphertext: <code id="dfa-heldout-correct">${hex(heldoutVictim)}</code></p>` +
+    check(
+      "dfa-heldout",
+      heldoutMatches,
+      heldoutMatches
+        ? "Held-out verification: the recovered key also encrypts a different plaintext to the victim's exact ciphertext."
+        : "Held-out verification failed; the recovered key is not accepted.",
+    ) +
+    check(
+      "dfa-recompute",
+      oneSidedDetected && !commonModeDetected,
+      oneSidedDetected && !commonModeDetected
+        ? "Simple recomputation detects a one-sided transient fault because the two ciphertexts differ; the same check would miss a common-mode fault that corrupts both executions identically."
+        : "Recomputation did not exhibit the expected one-sided/common-mode distinction.",
+    ) +
+    check(
+      "dfa-wrong-model",
+      !wrongModelContainsTruth,
+      !wrongModelContainsTruth
+        ? `Changed fault model: injecting row 1 while solving as row 0 leaves ${wrongModelSurvivors.length} surviving quartets and does not recover the true last-round bytes.`
+        : "The wrong fault model unexpectedly retained the true quartet; no failure claim is made.",
+    ) +
     `<details><summary>Why four ciphertext bytes change</summary><p>A single pre-MixColumns byte spreads down one column. Round 10 has no MixColumns, so its ShiftRows moves those four byte differences onto one ciphertext diagonal. For fault column 0 the affected positions are <code>0, 13, 10, 7</code>; the other columns rotate that pattern. The inverse-S-box equations let the attacker test last-round key bytes against the MixColumns differential without knowing the injected byte value.</p></details>
-<p><strong>Boundary:</strong> this is a chosen-location transient-fault model, not a claim that arbitrary real hardware faults land at this exact point. The attack is AES-128 only here. Fault detection and ineffective-fault leakage are a separate next lesson.</p>`
+<p><strong>Boundary:</strong> this is a chosen-location transient-fault model, not a claim that arbitrary real hardware faults land at this exact point. The attack is AES-128 only here. The recomputation check is a scoped temporal-redundancy example, not a universal fault defense; ineffective-fault leakage is a separate next lesson.</p>`
   );
 }
