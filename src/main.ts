@@ -89,6 +89,7 @@ const specs = [
         )
         .join("") +
       '</div></fieldset><div class="controls"><label>Known pairs for no ShiftRows<input id="pair-count" type="number" min="3" max="20" value="3" title="At least three pairs are required; targets must splice known columns."></label><label>Chosen plaintexts for no MixColumns<input id="byte-count" type="number" min="1" max="256" value="256" title="Fewer than 256 gives a partial codebook. Unknown bytes are shown as dots, never guessed."></label></div><div class="actions"><button id="attack-fixture">Use seeded affine fixture</button><button id="run-attack">Run attack</button><button id="cancel-attack">Cancel attack</button></div><p>SubWord always uses the real S-box. Only the data path is changed. These experiments run at AES-128.</p>',
+  },
   {
     title: "Inject a fault, recover the key",
     intro:
@@ -97,7 +98,6 @@ const specs = [
       "If each returned ciphertext byte is still a full 8-bit value, what structure could two faulty encryptions reveal about four bytes of the last round key?",
     controls:
       '<div class="actions"><button id="run-dfa" class="primary">Run differential fault recovery</button></div><p>This bounded exercise knows the injected byte location, but the attack is not given the victim key or the nonzero fault value.</p>',
-  },
   },
 ];
 const steps = el("steps"),
