@@ -32,7 +32,7 @@ The affine-only fixture has mean avalanche 61.5 bits, complete byte dependency c
 
 ## Real-World Usage
 
-AES is specified by [FIPS 197-upd1 (2023)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197-upd1.pdf). [RFC 9846 §9.1](https://www.rfc-editor.org/rfc/rfc9846.html#section-9.1) requires TLS 1.3 implementations to support TLS_AES_128_GCM_SHA256; this is a support requirement, not a claim about measured HTTPS traffic. RFC 9846 obsoletes RFC 8446. Modes and authenticated encryption are separate from the block primitive taught here.
+AES is specified by [FIPS 197-upd1 (2023)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197-upd1.pdf). In the absence of an application-profile standard specifying otherwise, [RFC 9846 §9.1](https://www.rfc-editor.org/rfc/rfc9846.html#section-9.1) requires a TLS-compliant application to support TLS_AES_128_GCM_SHA256; this is a support requirement, not a claim about measured HTTPS traffic. RFC 9846 obsoletes RFC 8446. Modes and authenticated encryption are separate from the block primitive taught here.
 
 The DFA exercise follows the classic late-round AES fault equations described by Dusart, Letourneux & Vivolo, *Differential Fault Analysis on A.E.S.* (ePrint 2003/010): a one-byte fault before the penultimate-round MixColumns spreads to four bytes, and inverse-S-box relations constrain the last-round key. This browser model uses a known logical fault location and unknown nonzero fault value; it is not a physical fault-injection claim.
 
