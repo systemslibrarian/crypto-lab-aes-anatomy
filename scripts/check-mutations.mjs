@@ -524,7 +524,7 @@ const cases = [
         "--retries=0",
       ],
     ],
-    owningTests: ["Hidden elements never paint in all eight acts and after an attack"],
+    owningTests: ["Hidden elements never paint in all nine acts and after an attack"],
   },
   {
     name: "Fixture dependency check uses one round",
@@ -702,6 +702,48 @@ const cases = [
     command: ["npx", ["vitest", "run", "-t", "round-10 key inversion matches"]],
     owningTests: [
       "AES-128 round-10 key inversion matches both FIPS examples used by the lab",
+    ],
+  },
+  {
+    name: "SIFA ranker uses addition instead of XOR",
+    changes: [
+      {
+        file: "src/attack/sifa.ts",
+        before: "SBOX[(value ^ keyByte) & 0xff]!",
+        after: "SBOX[(value + keyByte) & 0xff]!",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "biased accepted set uniquely ranks"]],
+    owningTests: [
+      "the biased accepted set uniquely ranks the actual key byte first",
+    ],
+  },
+  {
+    name: "SIFA biased selection weakens to five of eight",
+    changes: [
+      {
+        file: "src/sifa-fixture.ts",
+        before: "secretBit === 0 || repetition < 2",
+        after: "secretBit === 0 || repetition < 5",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "biased accepted set uniquely ranks"]],
+    owningTests: [
+      "the biased accepted set uniquely ranks the actual key byte first",
+    ],
+  },
+  {
+    name: "SIFA control becomes secret-dependent",
+    changes: [
+      {
+        file: "src/sifa-fixture.ts",
+        before: "repetition < 5;",
+        after: "secretBit === 0 || repetition < 2;",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "secret-independent control contains no candidate imbalance"]],
+    owningTests: [
+      "the secret-independent control contains no candidate imbalance",
     ],
   },
 ];
