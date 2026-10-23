@@ -21,6 +21,7 @@ import { act5 } from "./ui/act5";
 import { act6 } from "./ui/act6";
 import { act8 } from "./ui/act8";
 import { act9 } from "./ui/act9";
+import type { SifaDefense, SifaFaultModel } from "./sifa-fixture";
 import { grid } from "./ui/common";
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T,
   val = (id: string) => el<HTMLInputElement>(id).value;
@@ -103,11 +104,11 @@ const specs = [
   {
     title: "Keep only accepted outputs, recover a byte",
     intro:
-      "A detector can suppress visibly faulty outputs and still leak if the chance of an unchanged execution depends on secret state. Rank one AES key byte using only the plaintext values attached to accepted outputs, then compare a secret-independent control with the same sample count.",
+      "A detector can suppress visibly faulty outputs and still leak if the chance of an unchanged execution depends on secret state. Execute a declared first-round AES fault, rank one key byte from observable output selection, and compare a secret-independent control plus two scoped infective cases.",
     predict:
       "If the attacker never sees a faulty ciphertext, can the pattern of which executions survive still depend on the key?",
     controls:
-      '<div class="controls"><label>Target S-box output bit<select id="sifa-bit"><option value="0">bit 0</option><option value="1">bit 1</option><option value="2">bit 2</option><option value="3">bit 3</option><option value="4">bit 4</option><option value="5">bit 5</option><option value="6">bit 6</option><option value="7">bit 7</option></select></label><label>Fault selection model<select id="sifa-model"><option value="biased-ineffective">Biased ineffective fault</option><option value="secret-independent">Secret-independent control</option></select></label><label>Output handling<select id="sifa-defense"><option value="reject">Reject detected faults</option><option value="infect-with-validity">Infect outputs + external validity oracle</option></select></label></div><div class="actions"><button id="run-sifa" class="primary">Run accepted-output ranking</button></div><p>The ranker gets accepted plaintext bytes and the selected bit only. It does not receive the victim key or any faulty ciphertext value.</p>',
+      '<div class="controls"><label>Target S-box output bit<select id="sifa-bit"><option value="0">bit 0</option><option value="1">bit 1</option><option value="2">bit 2</option><option value="3">bit 3</option><option value="4">bit 4</option><option value="5">bit 5</option><option value="6">bit 6</option><option value="7">bit 7</option></select></label><label>Fault selection model<select id="sifa-model"><option value="noisy-stuck-at-zero">Noisy stuck-at-zero fault</option><option value="secret-independent">Secret-independent bit-flip control</option></select></label><label>Output handling<select id="sifa-defense"><option value="reject">Reject detected faults</option><option value="infect-hidden">Infect outputs, no classifier</option><option value="infect-with-validity">Infect outputs + exact reference oracle</option></select></label></div><div class="actions"><button id="run-sifa" class="primary">Run accepted-output ranking</button></div><p>The ranker gets selected plaintext bytes and the target bit only. It does not receive the victim key, internal state, or any per-attempt fault label.</p>',
   },
 ];
 const steps = el("steps"),
@@ -310,11 +311,11 @@ el("run-sifa").onclick = () => {
   try {
     const v = input();
     const bit = Number(val("sifa-bit"));
-    const model = val("sifa-model") as "biased-ineffective" | "secret-independent";
-    const defense = val("sifa-defense") as "reject" | "infect-with-validity";
-    el("result-9").innerHTML = act9(v.key, bit, model, defense);
+    const model = val("sifa-model") as SifaFaultModel;
+    const defense = val("sifa-defense") as SifaDefense;
+    el("result-9").innerHTML = act9(v.key, v.plaintext, bit, model, defense, v.seed);
     initialized.add(9);
-    notice(9, "Accepted-output ranking and control statistics computed from the current AES-128 key.");
+    notice(9, "Real-AES fault witnesses and accepted-output statistics computed from the current AES-128 inputs.");
   } catch (e) {
     el("result-9").replaceChildren();
     notice(9, (e as Error).message);

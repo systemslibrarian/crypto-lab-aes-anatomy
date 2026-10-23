@@ -9,7 +9,7 @@ export interface SifaCandidate {
 
 /**
  * Rank all 256 candidates for one first-round AES key byte using only the
- * plaintext bytes belonging to outputs that survived the fault filter.
+ * plaintext bytes selected by the observable output-handling policy.
  *
  * For candidate k, the targeted intermediate bit is:
  *
@@ -17,20 +17,20 @@ export interface SifaCandidate {
  *
  * SEI is the squared Euclidean imbalance of the predicted bit distribution
  * from uniform. The attack receives no victim key and no per-attempt fault
- * outcome beyond membership in acceptedPlaintextBytes.
+ * outcome beyond membership in selectedPlaintextBytes.
  */
 export function rankSifaKeyByte(
-  acceptedPlaintextBytes: readonly number[],
+  selectedPlaintextBytes: readonly number[],
   targetBit: number,
 ): SifaCandidate[] {
   if (!Number.isInteger(targetBit) || targetBit < 0 || targetBit > 7)
     throw new RangeError("targetBit must be an integer from 0 through 7");
-  if (acceptedPlaintextBytes.length === 0)
-    throw new Error("at least one accepted sample is required");
+  if (selectedPlaintextBytes.length === 0)
+    throw new Error("at least one selected sample is required");
 
-  const n = acceptedPlaintextBytes.length;
+  const n = selectedPlaintextBytes.length;
   const histogram = new Uint16Array(256);
-  for (const value of acceptedPlaintextBytes) {
+  for (const value of selectedPlaintextBytes) {
     if (!Number.isInteger(value) || value < 0 || value > 255)
       throw new RangeError("plaintext bytes must be integers from 0 through 255");
     histogram[value]++;

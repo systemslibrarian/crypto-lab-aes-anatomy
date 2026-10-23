@@ -39,6 +39,61 @@ async function expectHiddenNotPainted(page: Page) {
     ),
   ).toEqual([]);
 }
+function rankSifa(selected: number[], targetBit: number) {
+  return Array.from({ length: 256 }, (_, keyByte) => {
+    let zeros = 0;
+    for (const plaintextByte of selected)
+      if (((sbox[plaintextByte ^ keyByte]! >>> targetBit) & 1) === 0) zeros++;
+    const ones = selected.length - zeros;
+    const p0 = zeros / selected.length;
+    const p1 = ones / selected.length;
+    return { keyByte, zeros, ones, sei: (p0 - 0.5) ** 2 + (p1 - 0.5) ** 2 };
+  }).sort((a, b) => b.sei - a.sei || a.keyByte - b.keyByte);
+}
+
+function finiteSifaRows(keyByte: number, targetBit: number, seed: number) {
+  let state = seed >>> 0;
+  const nextByte = () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state >>> 24;
+  };
+  const sizes = [64, 256, 1024];
+  const noisy: number[] = [];
+  const control: number[] = [];
+  const noisyAttempts = new Map<number, number>();
+  const controlAttempts = new Map<number, number>();
+  let attempts = 0;
+  while (noisy.length < 1024 || control.length < 1024) {
+    const plaintextByte = nextByte();
+    const bucket = nextByte() & 7;
+    const secretBit = (sbox[plaintextByte ^ keyByte]! >>> targetBit) & 1;
+    attempts++;
+    if (noisy.length < 1024 && (bucket < 2 || secretBit === 0)) {
+      noisy.push(plaintextByte);
+      if (sizes.includes(noisy.length)) noisyAttempts.set(noisy.length, attempts);
+    }
+    if (control.length < 1024 && bucket < 5) {
+      control.push(plaintextByte);
+      if (sizes.includes(control.length)) controlAttempts.set(control.length, attempts);
+    }
+  }
+  return sizes.map((size) => {
+    const noisyRank = rankSifa(noisy.slice(0, size), targetBit);
+    const controlRank = rankSifa(control.slice(0, size), targetBit);
+    const actualNoisy = noisyRank.find((candidate) => candidate.keyByte === keyByte)!;
+    const actualControl = controlRank.find((candidate) => candidate.keyByte === keyByte)!;
+    return [
+      String(size),
+      String(noisyAttempts.get(size)),
+      String(noisyRank.indexOf(actualNoisy) + 1),
+      actualNoisy.sei.toFixed(6),
+      String(controlAttempts.get(size)),
+      String(controlRank.indexOf(actualControl) + 1),
+      actualControl.sei.toFixed(6),
+      controlRank[0]!.sei.toFixed(6),
+    ];
+  });
+}
 const negativeClaim =
   "FULL AVALANCHE (MEAN) — AND BROKEN BY ONE KNOWN PAIR. A good-looking avalanche is not security. This affine-only AES — where every output byte depends on every input byte and about half the output bits flip per input-bit flip on average — is still broken by one known plaintext.";
 async function attack(page: Page, variant: string) {
@@ -288,6 +343,11 @@ test("Invalid input lengths, unsupported192, cancellation, and mid-flight retire
   await page.locator("#fips-preset").click();
   await page.locator("#webcrypto-check").click();
   await expectVerdict(page.locator("#webcrypto-verdict"), "unsupported", "info");
+  await page.locator("#tab-9").click();
+  await page.locator("#run-sifa").click();
+  await expect(page.locator('#result-9 [data-verdict="wrong-key-size"]')).toContainText(
+    "AES-128 only",
+  );
   await page.locator("#plaintext").fill("aa");
   await page.locator("#compute-5").click();
   await expect(page.locator("#notice-5")).toContainText("No padding or truncation");
@@ -416,41 +476,87 @@ test("DFA display independently verifies recovered AES-128 key and candidate nar
   await expect(root).toContainText("ineffective-fault leakage is a separate next lesson");
 });
 
-test("accepted-output fault ranking exposes secret-dependent selection but not the same-size control", async ({ page }) => {
+test("real AES ineffective faults drive statistical selection, controls, and scoped infection", async ({ page }) => {
   await boot(page);
   await page.locator("#tab-9").click();
   await page.locator("#run-sifa").click();
 
-  const actual = (await page.locator("#key").inputValue()).slice(0, 2).toLowerCase();
+  const key = await page.locator("#key").inputValue();
+  const basePlaintext = await page.locator("#plaintext").inputValue();
+  const actual = key.slice(0, 2).toLowerCase();
+  const keyByte = parseInt(actual, 16);
   await expect(page.locator("#sifa-attempts")).toHaveText("2048");
   await expect(page.locator("#sifa-accepted")).toHaveText("1280");
   await expect(page.locator("#sifa-rejected")).toHaveText("768");
   await expect(page.locator("#sifa-returned")).toHaveText("1280");
+  await expect(page.locator("#sifa-selected")).toHaveText("1280");
   await expect(page.locator("#sifa-actual-rank")).toHaveText("1");
   await expect(page.locator("#sifa-top-sei")).toHaveText("0.180000");
-  const first = page.locator(".sifa-ranking tbody tr").first();
-  await expect(first.locator("td").nth(1)).toHaveText(actual);
-  await expect(first.locator("td").nth(2)).toHaveText("1024");
-  await expect(first.locator("td").nth(3)).toHaveText("256");
-  await expect(page.locator("[data-check=sifa-biased]")).toHaveAttribute("data-verdict", "pass");
-  await expect(page.locator("[data-check=sifa-same-count]")).toHaveAttribute("data-verdict", "pass");
+  for (const check of ["sifa-real-fault", "sifa-defense-executed", "sifa-biased", "sifa-same-count", "sifa-statistical"])
+    await expect(page.locator(`[data-check=${check}]`)).toHaveAttribute("data-verdict", "pass");
 
-  const keyByte = parseInt(actual, 16);
-  let zeros = 0;
-  let ones = 0;
+  const selected: number[] = [];
   for (let p = 0; p < 256; p++) {
     const bit = sbox[p ^ keyByte]! & 1;
-    if (bit === 0) zeros += 8;
-    else ones += 2;
+    for (let repetition = 0; repetition < (bit === 0 ? 8 : 2); repetition++) selected.push(p);
   }
-  expect(zeros).toBe(1024);
-  expect(ones).toBe(256);
+  const expectedRanking = rankSifa(selected, 0).slice(0, 8);
+  const renderedRanking = await page.locator(".sifa-ranking tbody tr").evaluateAll((rows) =>
+    rows.map((row) => Array.from(row.querySelectorAll("td"), (cell) => cell.textContent!.trim())),
+  );
+  expect(renderedRanking.map((row) => row.slice(0, 5))).toEqual(
+    expectedRanking.map((candidate, index) => [
+      String(index + 1),
+      candidate.keyByte.toString(16).padStart(2, "0"),
+      String(candidate.zeros),
+      String(candidate.ones),
+      candidate.sei.toFixed(6),
+    ]),
+  );
+
+  const witnessRows = await page.locator(".sifa-witnesses tbody tr").evaluateAll((rows) =>
+    rows.map((row) => Array.from(row.querySelectorAll("td"), (cell) => cell.textContent!.trim())),
+  );
+  expect(witnessRows).toHaveLength(3);
+  for (const [index, row] of witnessRows.entries()) {
+    const plaintext = row[1] + basePlaintext.slice(2);
+    const faultKind: "stuck-at-zero" | "bit-flip" =
+      index === 2 ? "bit-flip" : "stuck-at-zero";
+    const correct = await page.evaluate(referenceAes, {
+      key,
+      plaintext,
+      variant: "real",
+      sbox,
+    });
+    const faulty = await page.evaluate(referenceAes, {
+      key,
+      plaintext,
+      variant: "real",
+      sbox,
+      firstRoundByte0Fault: {
+        bit: 0,
+        kind: faultKind,
+      },
+    });
+    expect(row[3]).toBe(correct);
+    expect(row[4]).toBe(faulty);
+    expect(row[5]).toBe(correct === faulty ? "no alert" : "alert");
+    expect(row[6]).toBe(correct === faulty ? `correct: ${correct}` : "suppressed");
+  }
+
+  const convergence = await page.locator(".sifa-convergence tbody tr").evaluateAll((rows) =>
+    rows.map((row) => Array.from(row.querySelectorAll("td"), (cell) => cell.textContent!.trim())),
+  );
+  expect(convergence).toEqual(finiteSifaRows(keyByte, 0, 0x197197));
 
   await page.locator("#sifa-model").selectOption("secret-independent");
   await expect(page.locator("#result-9")).toBeEmpty();
   await page.locator("#run-sifa").click();
   await expect(page.locator("#sifa-accepted")).toHaveText("1280");
   await expect(page.locator("[data-check=sifa-control]")).toHaveAttribute("data-verdict", "pass");
+  await expect(page.locator("[data-check=sifa-statistical]")).toContainText(
+    "identical to its secret-independent control",
+  );
   const controlRows = await page.locator(".sifa-ranking tbody tr").evaluateAll((trs) =>
     trs.map((tr) => Array.from(tr.querySelectorAll("td"), (td) => td.textContent!.trim())),
   );
@@ -460,13 +566,30 @@ test("accepted-output fault ranking exposes secret-dependent selection but not t
     expect(row[4]).toBe("0.000000");
   }
 
-  await page.locator("#sifa-model").selectOption("biased-ineffective");
+  await page.locator("#sifa-model").selectOption("noisy-stuck-at-zero");
+  await page.locator("#sifa-defense").selectOption("infect-hidden");
+  await page.locator("#run-sifa").click();
+  await expect(page.locator("#sifa-returned")).toHaveText("2048");
+  await expect(page.locator("#sifa-selected")).toHaveText("2048");
+  await expect(page.locator("#sifa-actual-rank")).toHaveText("all 256 tied");
+  await expect(page.locator("#sifa-top-sei")).toHaveText("0.000000");
+  await expect(page.locator("[data-check=sifa-infect-hidden]")).toHaveAttribute("data-verdict", "pass");
+  await expect(page.locator("[data-check=sifa-statistical]")).toContainText(
+    "identical to its secret-independent control",
+  );
+  const infectedWitness = page.locator(".sifa-witnesses tbody tr").nth(1).locator("td");
+  await expect(infectedWitness.nth(6)).toContainText("infected:");
+  expect((await infectedWitness.nth(6).innerText()).slice("infected: ".length)).not.toBe(
+    await infectedWitness.nth(3).innerText(),
+  );
+
   await page.locator("#sifa-defense").selectOption("infect-with-validity");
   await page.locator("#run-sifa").click();
   await expect(page.locator("#sifa-returned")).toHaveText("2048");
   await expect(page.locator("#sifa-accepted")).toHaveText("1280");
+  await expect(page.locator("#sifa-selected")).toHaveText("1280");
   await expect(page.locator("#sifa-actual-rank")).toHaveText("1");
-  await expect(page.locator("#result-9")).toContainText("external validity oracle");
+  await expect(page.locator("#result-9")).toContainText("clean reference ciphertext for the same plaintext and fixed context");
 });
 
 test("Hidden elements never paint in all nine acts and after an attack", async ({ page }) => {

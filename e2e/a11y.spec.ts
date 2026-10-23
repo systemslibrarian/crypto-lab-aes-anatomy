@@ -65,11 +65,15 @@ for (const width of [1280, 320])
     await page.locator("#run-sifa").click();
     await expect(page.locator("#result-9 [data-check=sifa-control]")).toHaveAttribute("data-verdict", "pass");
     await scan(page, "secret-independent accepted-output control");
-    await page.locator("#sifa-model").selectOption("biased-ineffective");
+    await page.locator("#sifa-model").selectOption("noisy-stuck-at-zero");
+    await page.locator("#sifa-defense").selectOption("infect-hidden");
+    await page.locator("#run-sifa").click();
+    await expect(page.locator("#result-9 [data-check=sifa-infect-hidden]")).toHaveAttribute("data-verdict", "pass");
+    await scan(page, "infective output without a reference classifier");
     await page.locator("#sifa-defense").selectOption("infect-with-validity");
     await page.locator("#run-sifa").click();
     await expect(page.locator("#sifa-returned")).toHaveText("2048");
-    await scan(page, "infective output with external validity oracle");
+    await scan(page, "infective output with exact reference oracle");
     await page.locator("main > details summary").click();
     await scan(page, "scope links");
     expectBaselineNotStale();

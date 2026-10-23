@@ -713,23 +713,23 @@ const cases = [
         after: "SBOX[(value + keyByte) & 0xff]!",
       },
     ],
-    command: ["npx", ["vitest", "run", "-t", "biased accepted set uniquely ranks"]],
+    command: ["npx", ["vitest", "run", "-t", "noisy accepted set uniquely ranks"]],
     owningTests: [
-      "the biased accepted set uniquely ranks the actual key byte first",
+      "the noisy accepted set uniquely ranks the actual key byte first",
     ],
   },
   {
-    name: "SIFA biased selection weakens to five of eight",
+    name: "SIFA analytic fault profile weakens to three of eight landings",
     changes: [
       {
         file: "src/sifa-fixture.ts",
-        before: "secretBit === 0 || repetition < 2",
-        after: "secretBit === 0 || repetition < 5",
+        before: "const faultLanded = repetition >= 2;",
+        after: "const faultLanded = repetition >= 5;",
       },
     ],
-    command: ["npx", ["vitest", "run", "-t", "biased accepted set uniquely ranks"]],
+    command: ["npx", ["vitest", "run", "-t", "separates landed, missed"]],
     owningTests: [
-      "the biased accepted set uniquely ranks the actual key byte first",
+      "separates landed, missed, ineffective, and effective attempts",
     ],
   },
   {
@@ -737,13 +737,84 @@ const cases = [
     changes: [
       {
         file: "src/sifa-fixture.ts",
-        before: "repetition < 5;",
-        after: "secretBit === 0 || repetition < 2;",
+        before: "unchanged = !faultLanded;",
+        after: "unchanged = !faultLanded || secretBit === 0;",
       },
     ],
     command: ["npx", ["vitest", "run", "-t", "secret-independent control contains no candidate imbalance"]],
     owningTests: [
       "the secret-independent control contains no candidate imbalance",
+    ],
+  },
+  {
+    name: "SIFA real stuck-at fault is suppressed",
+    changes: [
+      {
+        file: "src/sifa-fixture.ts",
+        before: "faultedSub[0] &= ~(1 << targetBit);",
+        after: "faultedSub[0] &= 0xff;",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "applies a real first-round|derives every landed"]],
+    owningTests: [
+      "applies a real first-round stuck-at-zero fault and classifies full AES outputs",
+      "derives every landed/missed trial label from full ciphertext equality",
+    ],
+  },
+  {
+    name: "SIFA ciphertext equality classifier always accepts",
+    changes: [
+      {
+        file: "src/sifa-fixture.ts",
+        before: "unchanged: equal(correctCiphertext, faultyCiphertext),",
+        after: "unchanged: true,",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "derives every landed/missed"]],
+    owningTests: [
+      "derives every landed/missed trial label from full ciphertext equality",
+    ],
+  },
+  {
+    name: "SIFA statistical landing rate changes from six to three of eight",
+    changes: [
+      {
+        file: "src/sifa-fixture.ts",
+        before: 'bucket < 2 ? "miss" : "stuck-at-zero",',
+        after: 'bucket < 5 ? "miss" : "stuck-at-zero",',
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "finite-sample experiment"]],
+    owningTests: [
+      "a finite-sample experiment shows noisy convergence and a noisy null",
+    ],
+  },
+  {
+    name: "SIFA hidden infection still exposes the equality filter",
+    changes: [
+      {
+        file: "src/sifa-fixture.ts",
+        before: 'if (defense === "infect-hidden" || unchanged)',
+        after: "if (unchanged)",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "hidden infection closes"]],
+    owningTests: [
+      "hidden infection closes this selection channel when no validity oracle is granted",
+    ],
+  },
+  {
+    name: "SIFA infection mask is suppressed",
+    changes: [
+      {
+        file: "src/sifa-fixture.ts",
+        before: "infectionMask(executed.correctCiphertext, executed.faultyCiphertext, roundKeys),",
+        after: "new Uint8Array(16),",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "computes an infected output"]],
+    owningTests: [
+      "computes an infected output on detected mismatch",
     ],
   },
 ];

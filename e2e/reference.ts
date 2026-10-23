@@ -4,6 +4,7 @@ export function referenceAes(args: {
   plaintext: string;
   variant: string;
   sbox: number[];
+  firstRoundByte0Fault?: { bit: number; kind: "stuck-at-zero" | "bit-flip" };
 }) {
   const { sbox } = args,
     parse = (s: string) => s.match(/../g)!.map((x) => parseInt(x, 16)),
@@ -46,6 +47,11 @@ export function referenceAes(args: {
       for (let i = 1; i <= 4; i++) y ^= ((x << i) | (x >>> (8 - i))) & 255;
       return y;
     });
+    if (r === 1 && args.firstRoundByte0Fault) {
+      const { bit, kind } = args.firstRoundByte0Fault;
+      if (kind === "stuck-at-zero") state[0] &= ~(1 << bit);
+      else state[0] ^= 1 << bit;
+    }
     if (args.variant !== "noShift")
       state = state.map((_, i) => state[(i % 4) + 4 * ((Math.floor(i / 4) + (i % 4)) % 4)]);
     if (args.variant !== "noMix" && r < nr) {
