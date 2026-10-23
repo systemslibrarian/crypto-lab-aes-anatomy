@@ -696,7 +696,7 @@ const cases = [
       {
         file: "src/attack/dfa.ts",
         before: "substituted[0] ^= rcon(round);",
-        after: "substituted[0] ^= 0;",
+        after: "substituted[0] ^= rcon(round) ^ 1;",
       },
     ],
     command: ["npx", ["vitest", "run", "-t", "round-10 key inversion matches"]],
