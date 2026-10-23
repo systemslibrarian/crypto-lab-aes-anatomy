@@ -767,7 +767,7 @@ const cases = [
       {
         file: "src/sifa-fixture.ts",
         before: "unchanged: equal(correctCiphertext, faultyCiphertext),",
-        after: "unchanged: true,",
+        after: "unchanged: equal(correctCiphertext, correctCiphertext),",
       },
     ],
     command: ["npx", ["vitest", "run", "-t", "derives every landed/missed"]],

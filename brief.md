@@ -484,10 +484,10 @@ input-bit flip on average — is still broken by one known plaintext."*
   expansion and decryption — then pull out the S-box's inversion, ShiftRows or MixColumns and
   break what is left."
 - **Why it matters:** "TLS 1.3 requires every implementation to support
-  TLS_AES_128_GCM_SHA256 unless an application profile says otherwise (RFC 8446 §9.1). That
+  TLS_AES_128_GCM_SHA256 unless an application profile says otherwise (RFC 9846 §9.1). That
   makes AES the cipher under most HTTPS connections, and knowing why each of its layers is
   there is the difference between using it and trusting it."
-- Before shipping, confirm the RFC 8446 §9.1 wording against rfc-editor.org, including the
+- Before shipping, confirm the RFC 9846 §9.1 wording against rfc-editor.org, including the
   "In the absence of an application profile standard specifying otherwise" qualifier. Neither
   the brief author nor the reviewer could fetch the primary text. If "most HTTPS connections"
   can't be sourced, drop it.
@@ -527,6 +527,6 @@ input-bit flip on average — is still broken by one known plaintext."*
 - NIST CSRC, "Examples with Intermediate Values" (`AES_Core128.pdf` etc.).
 - J. Daemen and V. Rijmen, *The Design of Rijndael*, Springer. Used for branch number and
   wide-trail vocabulary, in a disclosure only. Cite the edition you actually open.
-- RFC 8446 §9.1. See the hero note.
+- RFC 9846 §9.1. See the hero note.
 - Paar & Pelzl, *Understanding Cryptography* (1st ed., 2010), ch. 4. Teaching context only;
   reproduce no text, figures or exercises.

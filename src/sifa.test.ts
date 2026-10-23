@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { cipher, REAL } from "./aes/cipher";
+import { expand } from "./aes/keyExpansion";
 import { SBOX } from "./aes/sbox";
-import { equal, parseHex } from "./aes/state";
+import { equal, parseHex, xor } from "./aes/state";
 import { rankOf, rankSifaKeyByte } from "./attack/sifa";
 import {
   buildSifaWitnesses,
@@ -78,6 +80,18 @@ describe("accepted-output statistical ineffective fault model", () => {
     );
     expect(equal(hidden.effective.returnedCiphertext!, hidden.effective.correctCiphertext)).toBe(
       false,
+    );
+    const roundKeys = expand(key.slice()).roundKeys;
+    const difference = xor(
+      hidden.effective.correctCiphertext,
+      hidden.effective.faultyCiphertext,
+    );
+    const expectedMask = xor(
+      cipher(difference, roundKeys, REAL),
+      cipher(new Uint8Array(16), roundKeys, REAL),
+    );
+    expect(hidden.effective.returnedCiphertext).toEqual(
+      xor(hidden.effective.correctCiphertext, expectedMask),
     );
     expect(hidden.effective.returnedCiphertext).toEqual(withOracle.effective.returnedCiphertext);
   });

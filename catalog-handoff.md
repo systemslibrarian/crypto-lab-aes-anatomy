@@ -52,6 +52,6 @@ The `data-implements` evidence anchor for AES can be `AES@src/aes/cipher.ts:26`,
 - Suggested progression: Clock Arithmetic → AES Anatomy → AES Modes → Biham Lens / Matsui Line. Concept coverage: confusion, diffusion and cipher structure.
 - Exact inspected neighbor revisions are in `overlap-review.md`. AEGIS Gate already shows a genuine AES round; this lab adds the full primitive, schedule, inverse and removal attacks.
 - Port 4746 was selected from the fleet registry. Preserve existing registry entries when incorporating this lab.
-- Attacks run at AES-128; schedule and whole-cipher traces cover 128/192/256. AES-192 uses FIPS vectors because Chromium WebCrypto does not support it. Act 9 recovers one byte in a logical chosen-input model, not a full key or a physical SIFA result.
+- Attacks run at AES-128; schedule and whole-cipher traces cover 128/192/256. AES-192 uses FIPS vectors because Chromium WebCrypto does not support it. Act 9 recovers one byte in a logical chosen-input model, not a full key or a physical SIFA result; its teaching infection is not timing- or latency-oblivious.
 - No EqInvCipher implementation, real-AES reduced-round attack, related-key attack, modes tutorial, timing attack or constant-time implementation is claimed.
 - Generate catalog evidence from the reviewed source revision. `mutation-evidence.json` records this branch's executed mutation checks; `performance-evidence.json` is the earlier timing measurement, not a new benchmark of this PR.
