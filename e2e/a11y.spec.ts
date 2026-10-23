@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { boot, scan, watchPageErrors, expectBaselineNotStale } from "./gate";
 for (const width of [1280, 320])
-  test(`All seven acts and edge states at ${width}`, async ({ page }) => {
+  test(`All eight acts and edge states at ${width}`, async ({ page }) => {
     test.setTimeout(600000);
     await page.setViewportSize({ width, height: 900 });
     const errors = watchPageErrors(page);
@@ -10,7 +10,7 @@ for (const width of [1280, 320])
       await page.screenshot({ path: `/tmp/aes-${width}.png`, fullPage: true });
     await page.locator(".cl-skip-link").focus();
     await scan(page, "focused skip link");
-    for (let n = 1; n <= 7; n++) {
+    for (let n = 1; n <= 8; n++) {
       await page.locator("#tab-" + n).click();
       for (const summary of await page.locator(`#act-${n} details summary`).all())
         await summary.click();
@@ -51,6 +51,11 @@ for (const width of [1280, 320])
     await scan(page, "partial codebook");
     await page.locator("#cancel-attack").click();
     await scan(page, "cancelled");
+    await page.locator("#tab-8").click();
+    await page.locator("#run-dfa").click();
+    await expect(page.locator("#result-8 [data-check=dfa-master]")).toHaveAttribute("data-verdict", "pass");
+    for (const summary of await page.locator("#result-8 details summary").all()) await summary.click();
+    await scan(page, "completed AES-128 differential fault recovery");
     await page.locator("main > details summary").click();
     await scan(page, "scope links");
     expectBaselineNotStale();

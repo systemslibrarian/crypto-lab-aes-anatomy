@@ -30,7 +30,7 @@ async function expectScore(
 }
 async function expectHiddenNotPainted(page: Page) {
   const hidden = page.locator("[hidden]");
-  expect(await hidden.count()).toBeGreaterThanOrEqual(6);
+  expect(await hidden.count()).toBeGreaterThanOrEqual(7);
   expect(
     await hidden.evaluateAll((nodes) =>
       nodes
@@ -352,9 +352,73 @@ test("Control with an invertible linear model", async ({ page }) => {
   await expectScore(page, "control", "control");
 });
 
-test("Hidden elements never paint in all seven acts and after an attack", async ({ page }) => {
+test("DFA display independently verifies recovered AES-128 key and candidate narrowing", async ({ page }) => {
   await boot(page);
-  for (let n = 1; n <= 7; n++) {
+  await page.locator("#tab-8").click();
+  await page.locator("#run-dfa").click();
+  const root = page.locator("#result-8");
+  await expectChecks(root);
+
+  const rows = await root.locator(".dfa-table tbody tr").evaluateAll((trs) =>
+    trs.map((tr) => Array.from(tr.querySelectorAll("td"), (td) => td.textContent!.trim())),
+  );
+  expect(rows).toHaveLength(4);
+  for (const [column, row] of rows.entries()) {
+    const expectedPositions = [0, 1, 2, 3].map(
+      (r) => r + 4 * ((column - r + 4) % 4),
+    );
+    expect(row[0]).toBe(String(column));
+    expect(row[1]).toBe(expectedPositions.join(", "));
+    expect(
+      row[2]
+        .split(",")
+        .map(Number)
+        .sort((a, b) => a - b),
+    ).toEqual([...expectedPositions].sort((a, b) => a - b));
+    expect(Number(row[3])).toBeGreaterThan(1);
+    expect(Number(row[3])).toBeLessThan(1024);
+    expect(Number(row[5])).toBe(1);
+    expect(Number(row[6])).toBeGreaterThanOrEqual(2);
+    expect(row[7]).toMatch(/^(?:[0-9a-f]{2} ){3}[0-9a-f]{2}$/);
+  }
+
+  const displayedRound10 = await page.locator("#dfa-round10").innerText();
+  expect(displayedRound10).toBe(fips.appendixB.rounds[9].key);
+
+  const displayedMaster = await page.locator("#dfa-master").innerText();
+  expect(displayedMaster).toBe(await page.locator("#key").inputValue());
+
+  const plaintext = await page.locator("#plaintext").inputValue();
+  const independent = await page.evaluate(referenceAes, {
+    key: displayedMaster,
+    plaintext,
+    variant: "real",
+    sbox,
+  });
+  expect(independent).toBe(await page.locator("#dfa-correct").innerText());
+
+  const heldoutPlaintext = await page.locator("#dfa-heldout-plaintext").innerText();
+  const heldoutExpected = await page.evaluate(referenceAes, {
+    key: displayedMaster,
+    plaintext: heldoutPlaintext,
+    variant: "real",
+    sbox,
+  });
+  expect(heldoutExpected).toBe(await page.locator("#dfa-heldout-correct").innerText());
+
+  await expect(root.locator("[data-check=dfa-heldout]")).toHaveAttribute("data-verdict", "pass");
+  await expect(root.locator("[data-check=dfa-recompute]")).toHaveAttribute("data-verdict", "pass");
+  await expect(root.locator("[data-check=dfa-wrong-model]")).toHaveAttribute("data-verdict", "pass");
+  await expect(page.locator("#act-8")).toContainText(
+    "attack is not given the victim key or the nonzero fault value",
+  );
+  await expect(root).toContainText("common-mode fault");
+  await expect(root).toContainText("ineffective-fault leakage is a separate next lesson");
+});
+
+test("Hidden elements never paint in all eight acts and after an attack", async ({ page }) => {
+  await boot(page);
+  for (let n = 1; n <= 8; n++) {
     await page.locator(`#tab-${n}`).click();
     await expectHiddenNotPainted(page);
   }
@@ -379,11 +443,14 @@ test("Valid key change retires every act and all auxiliary results", async ({ pa
   await attack(page, "noSub");
   await page.locator("input[value=noSub]").dispatchEvent("change");
   await expectVerdict(page.locator("#attack-verdict"), "broken", "alarm");
-  for (let n = 1; n <= 7; n++) await expect(page.locator(`#result-${n}`)).not.toBeEmpty();
+  await page.locator("#tab-8").click();
+  await page.locator("#run-dfa").click();
+  await expect(page.locator("#result-8 [data-check=dfa-master]")).toHaveAttribute("data-verdict", "pass");
+  for (let n = 1; n <= 8; n++) await expect(page.locator(`#result-${n}`)).not.toBeEmpty();
   for (const id of ["webcrypto-result", "word-detail", "layer-caption"])
     await expect(page.locator(`#${id}`)).not.toBeEmpty();
   await page.locator("#key").fill("000102030405060708090a0b0c0d0e0f");
-  for (let n = 1; n <= 7; n++) {
+  for (let n = 1; n <= 8; n++) {
     await expect(page.locator(`#result-${n}`)).toBeEmpty();
     await expect(page.locator(`#notice-${n}`)).toContainText("retired");
   }

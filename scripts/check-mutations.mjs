@@ -524,7 +524,7 @@ const cases = [
         "--retries=0",
       ],
     ],
-    owningTests: ["Hidden elements never paint in all seven acts and after an attack"],
+    owningTests: ["Hidden elements never paint in all eight acts and after an attack"],
   },
   {
     name: "Fixture dependency check uses one round",
@@ -661,6 +661,48 @@ const cases = [
     ],
     command: ["npx", ["vitest", "run", "-t", "Larger-key avalanche"]],
     owningTests: ["Larger-key avalanche diagnostics compute each variant with the same plaintext"],
+  },
+  {
+    name: "DFA MixColumns relation rotated",
+    changes: [
+      {
+        file: "src/attack/dfa.ts",
+        before: "MC[row]![faultRow]!",
+        after: "MC[(row + 1) % 4]![faultRow]!",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "One DFA pair narrows"]],
+    owningTests: [
+      "One DFA pair narrows each 32-bit round-key quartet while retaining the true quartet",
+    ],
+  },
+  {
+    name: "DFA fault injection suppressed",
+    changes: [
+      {
+        file: "src/dfa-fixture.ts",
+        before: "beforeMix[row + 4 * column] ^= fault;",
+        after: "beforeMix[row + 4 * column] ^= 0;",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "DFA fault before round-9 MixColumns"]],
+    owningTests: [
+      "DFA fault before round-9 MixColumns changes exactly the expected four ciphertext bytes",
+    ],
+  },
+  {
+    name: "DFA reverse schedule omits Rcon",
+    changes: [
+      {
+        file: "src/attack/dfa.ts",
+        before: "substituted[0] ^= rcon(round);",
+        after: "substituted[0] ^= rcon(round) ^ 1;",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "round-10 key inversion matches"]],
+    owningTests: [
+      "AES-128 round-10 key inversion matches both FIPS examples used by the lab",
+    ],
   },
 ];
 
