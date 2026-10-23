@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { boot, scan, watchPageErrors, expectBaselineNotStale } from "./gate";
 for (const width of [1280, 320])
-  test(`All eight acts and edge states at ${width}`, async ({ page }) => {
+  test(`All nine acts and edge states at ${width}`, async ({ page }) => {
     test.setTimeout(600000);
     await page.setViewportSize({ width, height: 900 });
     const errors = watchPageErrors(page);
@@ -10,7 +10,7 @@ for (const width of [1280, 320])
       await page.screenshot({ path: `/tmp/aes-${width}.png`, fullPage: true });
     await page.locator(".cl-skip-link").focus();
     await scan(page, "focused skip link");
-    for (let n = 1; n <= 8; n++) {
+    for (let n = 1; n <= 9; n++) {
       await page.locator("#tab-" + n).click();
       for (const summary of await page.locator(`#act-${n} details summary`).all())
         await summary.click();
@@ -56,6 +56,20 @@ for (const width of [1280, 320])
     await expect(page.locator("#result-8 [data-check=dfa-master]")).toHaveAttribute("data-verdict", "pass");
     for (const summary of await page.locator("#result-8 details summary").all()) await summary.click();
     await scan(page, "completed AES-128 differential fault recovery");
+    await page.locator("#tab-9").click();
+    await page.locator("#run-sifa").click();
+    await expect(page.locator("#result-9 [data-check=sifa-biased]")).toHaveAttribute("data-verdict", "pass");
+    for (const summary of await page.locator("#result-9 details summary").all()) await summary.click();
+    await scan(page, "biased accepted-output fault ranking");
+    await page.locator("#sifa-model").selectOption("secret-independent");
+    await page.locator("#run-sifa").click();
+    await expect(page.locator("#result-9 [data-check=sifa-control]")).toHaveAttribute("data-verdict", "pass");
+    await scan(page, "secret-independent accepted-output control");
+    await page.locator("#sifa-model").selectOption("biased-ineffective");
+    await page.locator("#sifa-defense").selectOption("infect-with-validity");
+    await page.locator("#run-sifa").click();
+    await expect(page.locator("#sifa-returned")).toHaveText("2048");
+    await scan(page, "infective output with external validity oracle");
     await page.locator("main > details summary").click();
     await scan(page, "scope links");
     expectBaselineNotStale();
