@@ -409,7 +409,9 @@ test("DFA display independently verifies recovered AES-128 key and candidate nar
   await expect(root.locator("[data-check=dfa-heldout]")).toHaveAttribute("data-verdict", "pass");
   await expect(root.locator("[data-check=dfa-recompute]")).toHaveAttribute("data-verdict", "pass");
   await expect(root.locator("[data-check=dfa-wrong-model]")).toHaveAttribute("data-verdict", "pass");
-  await expect(root).toContainText("attack is not given the victim key or the nonzero fault value");
+  await expect(page.locator("#act-8")).toContainText(
+    "attack is not given the victim key or the nonzero fault value",
+  );
   await expect(root).toContainText("common-mode fault");
   await expect(root).toContainText("ineffective-fault leakage is a separate next lesson");
 });
