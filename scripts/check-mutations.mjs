@@ -809,7 +809,8 @@ const cases = [
       {
         file: "src/sifa-fixture.ts",
         before: "infectionMask(executed.correctCiphertext, executed.faultyCiphertext, roundKeys),",
-        after: "new Uint8Array(16),",
+        after:
+          "xor(infectionMask(executed.correctCiphertext, executed.faultyCiphertext, roundKeys), infectionMask(executed.correctCiphertext, executed.faultyCiphertext, roundKeys)),",
       },
     ],
     command: ["npx", ["vitest", "run", "-t", "computes an infected output"]],
