@@ -145,5 +145,8 @@ it("Simple recomputation detects a one-sided transient fault but not an identica
   const pair = injectRound9MixColumnsFault(victimKey, pt, 0, 0, 1);
   const recomputed = cipher(pt, schedule);
   expect(equal(pair.faulty, recomputed)).toBe(false);
-  expect(equal(pair.faulty, pair.faulty)).toBe(true);
+  const commonModeFirst = injectRound9MixColumnsFault(victimKey, pt, 0, 0, 1);
+  const commonModeSecond = injectRound9MixColumnsFault(victimKey, pt, 0, 0, 1);
+  expect(commonModeFirst.faulty).not.toBe(commonModeSecond.faulty);
+  expect(equal(commonModeFirst.faulty, commonModeSecond.faulty)).toBe(true);
 });
