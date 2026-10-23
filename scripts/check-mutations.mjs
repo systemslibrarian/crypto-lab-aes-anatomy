@@ -524,7 +524,7 @@ const cases = [
         "--retries=0",
       ],
     ],
-    owningTests: ["Hidden elements never paint in all eight acts and after an attack"],
+    owningTests: ["Hidden elements never paint in all nine acts and after an attack"],
   },
   {
     name: "Fixture dependency check uses one round",
@@ -702,6 +702,120 @@ const cases = [
     command: ["npx", ["vitest", "run", "-t", "round-10 key inversion matches"]],
     owningTests: [
       "AES-128 round-10 key inversion matches both FIPS examples used by the lab",
+    ],
+  },
+  {
+    name: "SIFA ranker uses addition instead of XOR",
+    changes: [
+      {
+        file: "src/attack/sifa.ts",
+        before: "SBOX[(value ^ keyByte) & 0xff]!",
+        after: "SBOX[(value + keyByte) & 0xff]!",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "noisy accepted set uniquely ranks"]],
+    owningTests: [
+      "the noisy accepted set uniquely ranks the actual key byte first",
+    ],
+  },
+  {
+    name: "SIFA analytic fault profile weakens to three of eight landings",
+    changes: [
+      {
+        file: "src/sifa-fixture.ts",
+        before: "const faultLanded = repetition >= 2;",
+        after: "const faultLanded = repetition >= 5;",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "separates landed, missed"]],
+    owningTests: [
+      "separates landed, missed, ineffective, and effective attempts",
+    ],
+  },
+  {
+    name: "SIFA control becomes secret-dependent",
+    changes: [
+      {
+        file: "src/sifa-fixture.ts",
+        before: "unchanged = !faultLanded;",
+        after: "unchanged = !faultLanded || secretBit === 0;",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "secret-independent control contains no candidate imbalance"]],
+    owningTests: [
+      "the secret-independent control contains no candidate imbalance",
+    ],
+  },
+  {
+    name: "SIFA real stuck-at fault is suppressed",
+    changes: [
+      {
+        file: "src/sifa-fixture.ts",
+        before: "faultedSub[0] &= ~(1 << targetBit);",
+        after: "faultedSub[0] &= 0xff;",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "applies a real first-round|derives every landed"]],
+    owningTests: [
+      "applies a real first-round stuck-at-zero fault and classifies full AES outputs",
+      "derives every landed/missed trial label from full ciphertext equality",
+    ],
+  },
+  {
+    name: "SIFA ciphertext equality classifier always accepts",
+    changes: [
+      {
+        file: "src/sifa-fixture.ts",
+        before: "unchanged: equal(correctCiphertext, faultyCiphertext),",
+        after: "unchanged: equal(correctCiphertext, correctCiphertext),",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "derives every landed/missed"]],
+    owningTests: [
+      "derives every landed/missed trial label from full ciphertext equality",
+    ],
+  },
+  {
+    name: "SIFA statistical landing rate changes from six to three of eight",
+    changes: [
+      {
+        file: "src/sifa-fixture.ts",
+        before: 'bucket < 2 ? "miss" : "stuck-at-zero",',
+        after: 'bucket < 5 ? "miss" : "stuck-at-zero",',
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "finite-sample experiment"]],
+    owningTests: [
+      "a finite-sample experiment shows noisy convergence and a noisy null",
+    ],
+  },
+  {
+    name: "SIFA hidden infection still exposes the equality filter",
+    changes: [
+      {
+        file: "src/sifa-fixture.ts",
+        before: 'if (defense === "infect-hidden" || unchanged)',
+        after: "if (unchanged)",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "hidden infection closes"]],
+    owningTests: [
+      "hidden infection closes this selection channel when no validity oracle is granted",
+    ],
+  },
+  {
+    name: "SIFA infection mask is suppressed",
+    changes: [
+      {
+        file: "src/sifa-fixture.ts",
+        before: "infectionMask(executed.correctCiphertext, executed.faultyCiphertext, roundKeys),",
+        after:
+          "xor(infectionMask(executed.correctCiphertext, executed.faultyCiphertext, roundKeys), infectionMask(executed.correctCiphertext, executed.faultyCiphertext, roundKeys)),",
+      },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "computes an infected output"]],
+    owningTests: [
+      "computes an infected output on detected mismatch",
     ],
   },
 ];

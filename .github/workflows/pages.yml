@@ -35,6 +35,15 @@ jobs:
         run: npm run test:e2e
       - name: Mutation honesty gate
         run: node scripts/check-mutations.mjs
+      - name: Preserve mutation evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-evidence-${{ github.sha }}
+          path: |
+            mutation-evidence.json
+            mutation-logs/
+          if-no-files-found: error
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist

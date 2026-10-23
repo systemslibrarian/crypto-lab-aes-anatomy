@@ -1,5 +1,17 @@
 # AES Anatomy test-honesty verification
 
+## E-K-06 ineffective-fault follow-up — 2026-10-23
+
+Act 9 now earns its sampled fault-analysis claims from executed AES-128 rather than assigning an acceptance label from the secret bit. The finite-sample fixture clears a declared state-byte-0 bit immediately after first-round SubBytes, continues the existing AES implementation, and classifies by equality of the correct and fault-path ciphertexts on every trial. The separate exhaustive 8 × 256 table derives the same selection relation analytically and is explicitly labeled a population check, not sampled execution evidence. A landed bit-flip control is always effective, missed inductions stay distinct in verifier data, and the attacker ranker receives only the plaintext bytes selected by the visible output policy.
+
+The output-handling comparison has three executable states: rejection exposes output absence; infection without a classifier returns every output and gives this selection-only ranker every input; infection plus the exact clean reference for the same plaintext recovers the unchanged subset. The infection transform is labeled a deterministic teaching case, not timing- or latency-oblivious, not a hardened countermeasure, and not an implementation of Daemen et al.'s fine-grained circuit protections. Physical injection, full multi-byte AES SIFA, timing, common-mode and broader output-value attacks remain outside the claim.
+
+Independent browser claims recompute the real fault witnesses with a separate AES implementation, reconstruct all 256 exact-census candidate scores, reproduce the seeded finite-sample rows, and drive the control and both infective cases. The mutation gate contains 44 cases, including owners for the SIFA ranker, real stuck-at operation, ciphertext-equality classifier, analytic and sampled landing profiles, secret-independent control, hidden-selection boundary and infection transform. The workflow preserves the generated JSON and per-mutant logs as a hosted artifact. The complete hosted result and deployment revision belong in the Hub roadmap after the gate finishes; test counts alone are not recorded here as a pass in advance.
+
+Primary review used Clavier, *Secret External Encodings Do Not Prevent Transient Fault Analysis* (CHES 2007); Dobraunig et al., *SIFA: Exploiting Ineffective Fault Inductions on Symmetric Cryptography* (TCHES 2018); and Daemen et al., *Protecting against Statistical Ineffective Fault Attacks* (TCHES 2020).
+
+## Original test-honesty audit record — 2026-10-21
+
 Requested audit follow-up, 2026-10-21. Base commit: `7abf61f7fdcef076c5f536c81ec0e1b729b05118`. Work is on `fix/aes-anatomy-test-honesty`; this change is for PR review, without merge or deployment.
 
 ## Executed gates
