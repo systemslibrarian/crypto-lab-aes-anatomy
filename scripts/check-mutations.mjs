@@ -818,6 +818,24 @@ const cases = [
       "computes an infected output on detected mismatch",
     ],
   },
+  {
+    name: "Integral includes forbidden final MixColumns",
+    changes: [{ file: "src/integral.ts", before: "if (round < 4)", after: "if (round <= 4)" }],
+    command: ["npx", ["vitest", "run", "-t", "matches independent FIPS intermediate"]],
+  },
+  {
+    name: "Integral filters with forward S-box",
+    changes: [
+      { file: "src/integral.ts", before: "{ SBOX, INV_SBOX }", after: "{ SBOX }" },
+      { file: "src/integral.ts", before: "sum ^ INV_SBOX[c[byte] ^ k]", after: "sum ^ SBOX[c[byte] ^ k]" },
+    ],
+    command: ["npx", ["vitest", "run", "-t", "retains the real byte"]],
+  },
+  {
+    name: "Dispersion check omits ShiftRows",
+    changes: [{ file: "src/wide-trail.ts", before: "weakened ? labels : shiftRows(labels)", after: "weakened ? shiftRows(labels) : labels" }],
+    command: ["npx", ["vitest", "run", "-t", "checks every source column"]],
+  },
 ];
 
 for (const c of cases)

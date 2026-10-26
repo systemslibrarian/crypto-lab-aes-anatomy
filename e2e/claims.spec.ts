@@ -593,9 +593,9 @@ test("real AES ineffective faults drive statistical selection, controls, and sco
   await expect(page.locator("#result-9")).toContainText("clean reference ciphertext for the same plaintext and fixed context");
 });
 
-test("Hidden elements never paint in all nine acts and after an attack", async ({ page }) => {
+test("Hidden elements never paint in all ten acts and after an attack", async ({ page }) => {
   await boot(page);
-  for (let n = 1; n <= 9; n++) {
+  for (let n = 1; n <= 10; n++) {
     await page.locator(`#tab-${n}`).click();
     await expectHiddenNotPainted(page);
   }
@@ -626,11 +626,13 @@ test("Valid key change retires every act and all auxiliary results", async ({ pa
   await page.locator("#tab-9").click();
   await page.locator("#run-sifa").click();
   await expect(page.locator("#result-9 [data-check=sifa-biased]")).toHaveAttribute("data-verdict", "pass");
-  for (let n = 1; n <= 9; n++) await expect(page.locator(`#result-${n}`)).not.toBeEmpty();
+  await page.locator("#tab-10").click();
+  await page.locator("#compute-10").click();
+  for (let n = 1; n <= 10; n++) await expect(page.locator(`#result-${n}`)).not.toBeEmpty();
   for (const id of ["webcrypto-result", "word-detail", "layer-caption"])
     await expect(page.locator(`#${id}`)).not.toBeEmpty();
   await page.locator("#key").fill("000102030405060708090a0b0c0d0e0f");
-  for (let n = 1; n <= 9; n++) {
+  for (let n = 1; n <= 10; n++) {
     await expect(page.locator(`#result-${n}`)).toBeEmpty();
     await expect(page.locator(`#notice-${n}`)).toContainText("retired");
   }
