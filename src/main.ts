@@ -1,3 +1,4 @@
+import { act10 } from './ui/act10';
 import { splice } from "./attack/columns";
 import "./style.css";
 import fips from "./data/fips197.json";
@@ -110,6 +111,11 @@ const specs = [
     controls:
       '<div class="controls"><label>Target S-box output bit<select id="sifa-bit"><option value="0">bit 0</option><option value="1">bit 1</option><option value="2">bit 2</option><option value="3">bit 3</option><option value="4">bit 4</option><option value="5">bit 5</option><option value="6">bit 6</option><option value="7">bit 7</option></select></label><label>Fault selection model<select id="sifa-model"><option value="noisy-stuck-at-zero">Noisy stuck-at-zero fault</option><option value="secret-independent">Secret-independent bit-flip control</option></select></label><label>Output handling<select id="sifa-defense"><option value="reject">Reject detected faults</option><option value="infect-hidden">Infect outputs, no classifier</option><option value="infect-with-validity">Infect outputs + exact reference oracle</option></select></label></div><div class="actions"><button id="run-sifa" class="primary">Run accepted-output ranking</button></div><p>The ranker gets selected plaintext bytes and the target bit only. It does not receive the victim key, internal state, or any per-attempt fault label.</p>',
   },
+  {
+    title: "Balance a set, recover a reduced-round key",
+    intro: "A complete 256-plaintext set balances after three AES rounds. Filter final-round key bytes with extra sets, then verify separately. This is a four-round educational reduction, not full AES.",
+    controls: '',
+  }
 ];
 const steps = el("steps"),
   acts = el("acts");
@@ -148,7 +154,7 @@ function stop(reason: string) {
 }
 function retireAll(reason: string) {
   stop(reason);
-  for (let i = 1; i <= 9; i++) {
+  for (let i = 1; i <= specs.length; i++) {
     el("result-" + i).replaceChildren();
     notice(i, reason);
   }
@@ -224,6 +230,7 @@ function compute(i: number) {
         notice(8, "Run the DFA recovery to generate fresh correct/faulty ciphertext pairs for the current AES-128 inputs.");
         return;
       }
+      if (i === 10) el("result-10").innerHTML = act10(v.key, v.plaintext);
       if (i === 9) {
         notice(9, "Run the accepted-output ranking or change the fault model to compare the same-size secret-independent control.");
         return;
@@ -455,7 +462,7 @@ steps.addEventListener("keydown", (e) => {
   if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
   e.preventDefault();
   activate(
-    e.key === "Home" ? 0 : e.key === "End" ? 8 : (selected + (e.key === "ArrowRight" ? 1 : 8)) % 9,
+    e.key === "Home" ? 0 : e.key === "End" ? specs.length - 1 : (selected + (e.key === "ArrowRight" ? 1 : specs.length - 1)) % specs.length,
   );
   (steps.children[selected] as HTMLElement).focus();
 });

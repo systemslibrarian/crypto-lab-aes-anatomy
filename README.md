@@ -2,7 +2,7 @@
 
 ## What It Is
 
-A nine-act, inspectable implementation of AES-128, AES-192 and AES-256. Build finite-field arithmetic and the S-box, trace every round and inverse, then remove one layer and run an oracle-only attack beside the same attack on full AES. Real AES is the default; broken variants are opt-in teaching experiments.
+A ten-act, inspectable implementation of AES-128, AES-192 and AES-256. Build finite-field arithmetic and the S-box, trace every round and inverse, then remove one layer and run an oracle-only attack beside the same attack on full AES. Real AES is the default; broken variants are opt-in teaching experiments.
 
 ## Exhibits
 
@@ -70,7 +70,7 @@ node scripts/check-mutations.mjs
 node scripts/measure-performance.mjs
 ```
 
-Fifty-one unit cases check all FIPS words and intermediate states, 400 seeded WebCrypto comparisons, 200 AES-192 round trips, exhaustive finite-field facts, all 69 minors, 200 seeded ablation-property cases, oracle import/arity and victim-key independence boundaries, held-out ordering/transcript separation, a memorising-attack canary, independently reconstructed invertible controls, singular and partial-codebook refusals, DFA recovery, and the IFA/SIFA mechanisms. Nineteen browser claims independently recompute attack/control rows, fault witnesses and SIFA rankings, inspect all key words and both S-box tables (including fixed SHA-256 digests), verify every AddRoundKey XOR and field computation, and check verdict classes, score denominators, hidden panels and complete retirement. Two accessibility drives scan all nine acts and expanded results at desktop and 320px: axe A/AA and landmarks, measured visible/hidden text and nontext contrast, keyboard scrollers, focus and reflow. The nontext baseline is empty.
+Unit cases check all FIPS words and intermediate states, 400 seeded WebCrypto comparisons, 200 AES-192 round trips, exhaustive finite-field facts, all 69 minors, 200 seeded ablation-property cases, oracle import/arity and victim-key independence boundaries, held-out ordering/transcript separation, a memorising-attack canary, independently reconstructed invertible controls, singular and partial-codebook refusals, DFA recovery, and the IFA/SIFA mechanisms. Tenteen browser claims independently recompute attack/control rows, fault witnesses and SIFA rankings, inspect all key words and both S-box tables (including fixed SHA-256 digests), verify every AddRoundKey XOR and field computation, and check verdict classes, score denominators, hidden panels and complete retirement. Two accessibility drives scan all ten acts and expanded results at desktop and 320px: axe A/AA and landmarks, measured visible/hidden text and nontext contrast, keyboard scrollers, focus and reflow. The nontext baseline is empty.
 
 Forty-four scripted mutations cover the original cases, every test-honesty survivor, the DFA mechanism, and the SIFA ranker, real fault application, equality classifier, landing distribution, control, hidden-selection boundary and infection transform. Each must build into a different artifact, fail a named assertion with retries disabled, restore byte-for-byte, and pass its owning test again. `mutation-evidence.json` records executed results and named owning tests; [AUDIT_VERIFICATION.md](AUDIT_VERIFICATION.md) maps the added cases to their owners. The AES-256-only mutant also runs AES-128 controls to prove those paths still pass. GitHub Pages deployment depends on the complete unit/build/browser/mutation gate; grouped Dependabot changes use that same gate and explicitly dispatch deployment after merge.
 
@@ -83,3 +83,11 @@ Forty-four scripted mutations cover the original cases, every test-honesty survi
 *One of the browser demos in the [Crypto Lab](https://crypto-lab.systemslibrarian.dev/) suite.*
 
 *"So whether you eat or drink or whatever you do, do it all for the glory of God." — 1 Corinthians 10:31*
+
+## Wide trails and reduced-round integrals
+
+Act 3 checks ShiftRows column dispersion alongside all 69 MixColumns minors. It connects those hypotheses to the four-round, 25-active-S-box theorem, shows an observed trace separately, and makes the identity-permutation counterexample visible. Differential-trail probability and linear-trail correlation bounds are not differential/hull or full-cipher security bounds.
+
+Act 10 runs a four-round AES-128 reduction: three ordinary rounds and a final round without MixColumns. An oracle-only attacker filters all 256 key-byte candidates using complete, disjoint Lambda-sets (up to six), reverses the round-4 schedule only when every byte is unique, and checks three separate held-out plaintexts afterward. It exposes ambiguous results rather than claiming unconditional recovery.
+
+Source: Joan Daemen and Vincent Rijmen, *The Design of Rijndael: The Advanced Encryption Standard (AES)*, second edition, 2020. Theorem 9.5.1: printed pp. 140–143 / supplied PDF pp. 160–163. Integral attack: printed pp. 150–152 / supplied PDF pp. 170–172.

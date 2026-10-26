@@ -1,3 +1,4 @@
+import { columnDispersion, dispersesColumns } from '../wide-trail';
 import {
   MC,
   IMC,
@@ -73,6 +74,16 @@ export function act3(key: Block, plaintext: Block) {
       ]),
     )}`;
   }
+  html += '<h3>From local branch number to four-round trails</h3>' +
+    table('Executable ShiftRows column dispersion', ['Input column', 'Destination columns: ShiftRows', 'Identity permutation'],
+      columnDispersion().map((destinations, column) => [String(column), destinations.join(', '), columnDispersion(true)[column].join(', ')])) +
+    check('wide-trail-dispersion', dispersesColumns(), 'Every input column sends one byte to each output column.') +
+    check('weakened-dispersion', !dispersesColumns(true), 'The weakened identity permutation fails the dispersion hypothesis.') +
+    '<p>MixColumns branch number 5 plus this column dispersion are hypotheses of the four-round wide-trail argument: at least 25 active S-boxes in any nonzero four-round differential or linear trail. The theorem supplies the bound; this program checks these structural hypotheses, not all trails.</p>' +
+    table('Observed four-round differential trail', ['Round', 'Observed active S-box inputs'],
+      [1, 2, 3, 4].map(round => [String(round), String(xor(a[round].input, b[round].input).filter(x => x !== 0).length)])) +
+    '<p>This trace is one fixed-key observation, not a proof. With AES maximum S-box differential probability 2<sup>−6</sup> and maximum absolute linear correlation 2<sup>−3</sup>, the usual trail model gives 2<sup>−150</sup> for a four-round differential trail and 2<sup>−75</sup> for absolute linear-trail correlation. A differential or linear hull combines trails; these are not whole-cipher security bounds.</p>' +
+    '<p>Source: Joan Daemen and Vincent Rijmen, <cite>The Design of Rijndael: The Advanced Encryption Standard (AES)</cite>, second edition (2020), Theorem 9.5.1 and surrounding proof, printed pp. 140–143 / supplied PDF pp. 160–163.</p>';
   return (
     html +
     '<p><a href="https://systemslibrarian.github.io/crypto-lab-aegis-gate/">AEGIS Gate</a> already steps a genuine AES round inside another construction.</p>'

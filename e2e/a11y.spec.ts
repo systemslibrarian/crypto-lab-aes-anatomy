@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { boot, scan, watchPageErrors, expectBaselineNotStale } from "./gate";
 for (const width of [1280, 320])
-  test(`All nine acts and edge states at ${width}`, async ({ page }) => {
+  test(`All ten acts and edge states at ${width}`, async ({ page }) => {
     test.setTimeout(600000);
     await page.setViewportSize({ width, height: 900 });
     const errors = watchPageErrors(page);
@@ -10,7 +10,7 @@ for (const width of [1280, 320])
       await page.screenshot({ path: `/tmp/aes-${width}.png`, fullPage: true });
     await page.locator(".cl-skip-link").focus();
     await scan(page, "focused skip link");
-    for (let n = 1; n <= 9; n++) {
+    for (let n = 1; n <= 10; n++) {
       await page.locator("#tab-" + n).click();
       for (const summary of await page.locator(`#act-${n} details summary`).all())
         await summary.click();

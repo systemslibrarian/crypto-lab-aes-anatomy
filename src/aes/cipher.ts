@@ -103,4 +103,4 @@ export function invCipher(
   }
   return state;
 }
-// [extension] point: reduced rounds for a future square/integral exhibit, not implemented.
+// Reduced four-round integral exercise is isolated in ../integral.ts.
