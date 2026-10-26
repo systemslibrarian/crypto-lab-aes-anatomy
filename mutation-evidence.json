@@ -2,10 +2,13 @@
   {
     "name": "xtime unconditional reduction",
     "sourceDiff": "diff --git a/src/gf/gf256.ts b/src/gf/gf256.ts\nindex 7d3ed2b..e88f1b9 100644\n--- a/src/gf/gf256.ts\n+++ b/src/gf/gf256.ts\n@@ -1,7 +1,7 @@\n /** FIPS 197-upd1 §4: coefficients in GF(2), modulus x^8+x^4+x^3+x+1. */\n export const add = (a: number, b: number) => a ^ b;\n export function xtime(a: number): number {\n-  return ((a << 1) ^ (a & 0x80 ? 0x1b : 0)) & 255;\n+  return ((a << 1) ^ 0x1b) & 255;\n }\n export function mul(a: number, b: number): number {\n   let v = 0;\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "3e6dbfb7179ee83f272a1e0dc672019c360076d9e77bf9447495e4c846f4edf4",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "130cbecc256500cbee1ca7b1db3fede8242796d39bc7c9014264f6002852344f",
     "owningTest": "FIPS GF256|FIPS all256",
-    "failedTests": [],
+    "failedTests": [
+      "   × FIPS GF256 facts and every inverse by independent exponent route 11ms",
+      " FAIL  src/aes/core.test.ts > FIPS GF256 facts and every inverse by independent exponent route"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -13,21 +16,33 @@
   {
     "name": "ShiftRows right",
     "sourceDiff": "diff --git a/src/aes/state.ts b/src/aes/state.ts\nindex 5d553f3..32fd7d6 100644\n--- a/src/aes/state.ts\n+++ b/src/aes/state.ts\n@@ -28,7 +28,7 @@ export function xor(a: Block, b: Block): Block {\n export const equal = (a: Block, b: Block) => a.length === b.length && a.every((x, i) => x === b[i]);\n export function shiftRows(a: Block): Block {\n   const b = new Uint8Array(16);\n-  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) b[r + 4 * c] = a[r + 4 * ((c + r) % 4)];\n+  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) b[r + 4 * c] = a[r+4*((c+4-r)%4)];\n   return b;\n }\n export function invShiftRows(a: Block): Block {\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "481fd40aa371c3ce01d9032fe11e199aebbdcb9d609382dc97ddf152ed04d6a8",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "85ab48549a68189ae3112e531db8259e8ae1d9f4fd86c5e850356f8c40260623",
     "owningTest": "FIPS Appendix B",
-    "failedTests": [],
+    "failedTests": [
+      "   × FIPS Appendix B every intermediate and omitted final MixColumns 11ms",
+      " FAIL  src/aes/core.test.ts > FIPS Appendix B every intermediate and omitted final MixColumns"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
   },
   {
     "name": "MixColumns in final round",
-    "sourceDiff": "diff --git a/src/aes/cipher.ts b/src/aes/cipher.ts\nindex 8781057..6c92c33 100644\n--- a/src/aes/cipher.ts\n+++ b/src/aes/cipher.ts\n@@ -49,7 +49,7 @@ export function cipher(\n         config.sbox === \"real\" ? SBOX[x] : config.sbox === \"affineOnly\" ? AFFINE[x] : x,\n       ),\n       shift = config.shiftRows ? shiftRows(sub) : sub.slice(),\n-      mix = config.mixColumns && round < Nr ? mixColumns(shift) : null,\n+      mix = config.mixColumns&&round<=Nr ? mixColumns(shift) : null,\n       beforeKey = mix ?? shift;\n     state = xor(beforeKey, roundKeys[round]);\n     trace?.push({\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "2d5c7ae63a05bc73ea1317a6f42d0405ccb5161c091733dc90752caef50466c3",
+    "sourceDiff": "diff --git a/src/aes/cipher.ts b/src/aes/cipher.ts\nindex 4f63100..db373a3 100644\n--- a/src/aes/cipher.ts\n+++ b/src/aes/cipher.ts\n@@ -49,7 +49,7 @@ export function cipher(\n         config.sbox === \"real\" ? SBOX[x] : config.sbox === \"affineOnly\" ? AFFINE[x] : x,\n       ),\n       shift = config.shiftRows ? shiftRows(sub) : sub.slice(),\n-      mix = config.mixColumns && round < Nr ? mixColumns(shift) : null,\n+      mix = config.mixColumns&&round<=Nr ? mixColumns(shift) : null,\n       beforeKey = mix ?? shift;\n     state = xor(beforeKey, roundKeys[round]);\n     trace?.push({\n",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "7f6f437e5623fbcfcf162aa0787504c0d7c3843fdf1046e00ae412fe6780ecd3",
     "owningTest": "FIPS Appendix B|FIPS 2001 Appendix C",
-    "failedTests": [],
+    "failedTests": [
+      "   × FIPS Appendix B every intermediate and omitted final MixColumns 10ms",
+      "   × FIPS 2001 Appendix C AES128 2ms",
+      "   × FIPS 2001 Appendix C AES192 2ms",
+      "   × FIPS 2001 Appendix C AES256 1ms",
+      " FAIL  src/aes/core.test.ts > FIPS Appendix B every intermediate and omitted final MixColumns",
+      " FAIL  src/aes/core.test.ts > FIPS 2001 Appendix C AES128",
+      " FAIL  src/aes/core.test.ts > FIPS 2001 Appendix C AES192",
+      " FAIL  src/aes/core.test.ts > FIPS 2001 Appendix C AES256"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -39,22 +54,27 @@
       "FIPS 2001 Appendix C AES128"
     ],
     "sourceDiff": "diff --git a/src/aes/keyExpansion.ts b/src/aes/keyExpansion.ts\nindex 74fcf6d..24d4227 100644\n--- a/src/aes/keyExpansion.ts\n+++ b/src/aes/keyExpansion.ts\n@@ -39,7 +39,7 @@ export function expand(key: Uint8Array) {\n       rc = rcon;\n       temp[0] ^= rcon;\n       rcon = xtime(rcon);\n-    } else if (Nk === 8 && i % Nk === 4) {\n+    } else if (Nk===0&&i%Nk===4) {\n       extra = true;\n       substituted = temp.map((x) => SBOX[x]);\n       temp = substituted.slice();\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "32c30fe5044c1666e834dfa74cf06554f92ff9c12b1c3456e2570b0475d69826",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "3ffc069891c96f9abbf3081aae89457ba7d48e58829fcaf7dff993e0b8a1e83b",
     "owningTest": "FIPS Appendix A|FIPS 2001 Appendix C",
-    "failedTests": [],
+    "failedTests": [
+      "   × FIPS Appendix A3 every expanded word 8ms",
+      "   × FIPS 2001 Appendix C AES256 2ms",
+      " FAIL  src/aes/core.test.ts > FIPS Appendix A3 every expanded word",
+      " FAIL  src/aes/core.test.ts > FIPS 2001 Appendix C AES256"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
   },
   {
     "name": "Inverse forward keys",
-    "sourceDiff": "diff --git a/src/aes/cipher.ts b/src/aes/cipher.ts\nindex 8781057..c69ddef 100644\n--- a/src/aes/cipher.ts\n+++ b/src/aes/cipher.ts\n@@ -80,7 +80,7 @@ export function invCipher(\n   fault: \"none\" | \"forwardKeys\" | \"wrongMix\" = \"none\",\n ): Block {\n   if (input.length !== 16) throw Error(\"AES block must be exactly 16 bytes.\");\n-  const keys = fault === \"forwardKeys\" ? roundKeys : roundKeys.slice().reverse();\n+  const keys = fault === \"forwardKeys\" ? roundKeys : roundKeys.slice();\n   let state = xor(input, keys[0]);\n   trace?.push({ round: 0, layer: \"AddRoundKey\", state: state.slice(), key: keys[0] });\n   for (let round = 1; round < keys.length; round++) {\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "8f2a2d802285a867d2ea6706d37058a8c51a809b5d464049493dc6cbe3d8f4a8",
+    "sourceDiff": "diff --git a/src/aes/cipher.ts b/src/aes/cipher.ts\nindex 4f63100..edcffd8 100644\n--- a/src/aes/cipher.ts\n+++ b/src/aes/cipher.ts\n@@ -80,7 +80,7 @@ export function invCipher(\n   fault: \"none\" | \"forwardKeys\" | \"wrongMix\" = \"none\",\n ): Block {\n   if (input.length !== 16) throw Error(\"AES block must be exactly 16 bytes.\");\n-  const keys = fault === \"forwardKeys\" ? roundKeys : roundKeys.slice().reverse();\n+  const keys = fault === \"forwardKeys\" ? roundKeys : roundKeys.slice();\n   let state = xor(input, keys[0]);\n   trace?.push({ round: 0, layer: \"AddRoundKey\", state: state.slice(), key: keys[0] });\n   for (let round = 1; round < keys.length; round++) {\n",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "a6b5bf586b4b8b9832c1386fe3b439739e05c19344817499ba9f2f37594df272",
     "owningTest": "Inverse correct",
     "failedTests": [
-      "  ✘  1 [chromium] › e2e/claims.spec.ts:239:1 › Inverse correct, forward-key and wrong-mix modes show computed mismatches (5.2s)"
+      "  ✘  1 [chromium] › e2e/claims.spec.ts:239:1 › Inverse correct, forward-key and wrong-mix modes show computed mismatches (5.4s)"
     ],
     "assertionFailure": true,
     "retries": 0,
@@ -63,11 +83,11 @@
   {
     "name": "Affine second oracle query",
     "sourceDiff": "diff --git a/src/attack/affine.ts b/src/attack/affine.ts\nindex e73e999..c5d62fa 100644\n--- a/src/attack/affine.ts\n+++ b/src/attack/affine.ts\n@@ -22,7 +22,7 @@ export async function recoverAffine(\n       });\n   const plaintext = makeOwnKey(),\n     ciphertext = await oracle(plaintext),\n-    offset = pack(ciphertext) ^ apply(columns, pack(plaintext)),\n+    offset=pack(await oracle(zero))^apply(columns,0n),\n     inversion = invert(columns);\n   return {\n     kind: \"decrypt\",\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "4803ffb1c3813a0b167b61eea42f9c6310b11f1335375278e3666b8514dc75df",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "9fbddf172c8de22fb47695c7c4e6902e220e4d150ed3e41b6de34df7912fe4e6",
     "owningTest": "Independent browser recomputation: noSub",
     "failedTests": [
-      "  ✘  1 [chromium] › e2e/claims.spec.ts:251:3 › Independent browser recomputation: noSub 32 heldout successes and 32 realAES failures (5.4s)"
+      "  ✘  1 [chromium] › e2e/claims.spec.ts:251:3 › Independent browser recomputation: noSub 32 heldout successes and 32 realAES failures (5.6s)"
     ],
     "assertionFailure": true,
     "retries": 0,
@@ -76,13 +96,16 @@
   {
     "name": "Attack receives victim key",
     "sourceDiff": "diff --git a/src/harness.ts b/src/harness.ts\nindex 56a79b3..d037e96 100644\n--- a/src/harness.ts\n+++ b/src/harness.ts\n@@ -54,7 +54,7 @@ export async function runBreak(\n     const config = control ? REAL : VARIANTS[variant],\n       victim = createVictim(victimKey, config),\n       ownSource = seeded(seed ^ 0x6c8e9cf5),\n-      drawOwnKey = () => ownSource(16),\n+      drawOwnKey = () => ownSource(16).map((_, i) => victimKey[i]),\n       makeOwnKey = () => {\n         const bytes = drawOwnKey();\n         hooks.onOwnKey?.(bytes.slice());\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "4bc9d0f06f99a82751a3bc1db412cd93fbc03fbd1a21171f228e0d219a7cf9f6",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "5fde942af07d5eeba092719a661a77788a3ddb18d97ebde32bd8fac239568a3d",
     "owningTest": "Invariant 3: attacker inputs are independent of the victim key",
     "owningTests": [
       "Invariant 3: attacker inputs are independent of the victim key"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "   × Invariant 3: attacker inputs are independent of the victim key 69ms",
+      " FAIL  src/invariants.test.ts > Invariant 3: attacker inputs are independent of the victim key"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -90,24 +113,30 @@
   {
     "name": "Heldout constructed before attack",
     "sourceDiff": "diff --git a/src/harness.ts b/src/harness.ts\nindex 56a79b3..087f3ef 100644\n--- a/src/harness.ts\n+++ b/src/harness.ts\n@@ -60,6 +60,7 @@ export async function runBreak(\n         hooks.onOwnKey?.(bytes.slice());\n         return bytes;\n       };\n+    const earlyHeldout = hooks.generator ? hooks.generator(heldoutSeed(seed)) : new HeldoutGenerator(heldoutSeed(seed));\n     const choose = seeded(seed ^ 0x45d9f3b);\n     let queries = 0;\n     const oracle = async (p: Block) => {\n@@ -76,10 +77,7 @@ export async function runBreak(\n     else recovered = await recoverBytes(oracle, count);\n     // The promise has resolved; only now may the verifier construct its separate stream.\n     hooks.afterAttack?.();\n-    const heldout = hooks.generator\n-        ? hooks.generator(heldoutSeed(seed))\n-        : new HeldoutGenerator(heldoutSeed(seed)),\n-      rows: HeldoutRow[] = [];\n+    const heldout = earlyHeldout, rows: HeldoutRow[] = [];\n     for (let i = 0; i < 32; i++) {\n       const plaintext =\n           recovered.kind === \"forge\" ? heldout.splice(recovered.known) : heldout.block(),\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "bc83a8ecef46bff1b628152d2af8bf2cb33940b908b7f32c6acf833c51f92dad",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "ca164cf24631a462bf77ab2bba2107bb2c11bc6861173b29e2e9ac8602aba833",
     "owningTest": "Heldout stream",
     "owningTests": [
       "Heldout stream is constructed only after attack promise resolves, for both runs"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "   × Heldout stream is constructed only after attack promise resolves, for both runs 58ms",
+      " FAIL  src/invariants.test.ts > Heldout stream is constructed only after attack promise resolves, for both runs"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
   },
   {
     "name": "NoShift also removes MixColumns",
-    "sourceDiff": "diff --git a/src/aes/cipher.ts b/src/aes/cipher.ts\nindex 8781057..83133ac 100644\n--- a/src/aes/cipher.ts\n+++ b/src/aes/cipher.ts\n@@ -10,7 +10,7 @@ export const VARIANTS: Record<string, Config> = {\n   real: REAL,\n   noSub: { ...REAL, sbox: \"identity\" },\n   affine: { ...REAL, sbox: \"affineOnly\" },\n-  noShift: { ...REAL, shiftRows: false },\n+  noShift:{...REAL,shiftRows:false,mixColumns:false},\n   noMix: { ...REAL, mixColumns: false },\n };\n export interface Round {\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "ca49a96cb8543d182c70fc87969ccd1250e8f3938c183729de4585c4f942506c",
+    "sourceDiff": "diff --git a/src/aes/cipher.ts b/src/aes/cipher.ts\nindex 4f63100..0dd4026 100644\n--- a/src/aes/cipher.ts\n+++ b/src/aes/cipher.ts\n@@ -10,7 +10,7 @@ export const VARIANTS: Record<string, Config> = {\n   real: REAL,\n   noSub: { ...REAL, sbox: \"identity\" },\n   affine: { ...REAL, sbox: \"affineOnly\" },\n-  noShift: { ...REAL, shiftRows: false },\n+  noShift:{...REAL,shiftRows:false,mixColumns:false},\n   noMix: { ...REAL, mixColumns: false },\n };\n export interface Round {\n",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "ae4edabe8f498f892c80a7f483527b34224a57f576feb5247059ba06f7db4946",
     "owningTest": "Labelled ablation",
-    "failedTests": [],
+    "failedTests": [
+      "   × Labelled ablation cross-checks keep the real key schedule 13ms",
+      " FAIL  src/aes/core.test.ts > Labelled ablation cross-checks keep the real key schedule"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -115,11 +144,11 @@
   {
     "name": "Skipped realAES control and hardcoded zero",
     "sourceDiff": "diff --git a/src/harness.ts b/src/harness.ts\nindex 56a79b3..b3f5a7e 100644\n--- a/src/harness.ts\n+++ b/src/harness.ts\n@@ -117,5 +117,5 @@ export async function runBreak(\n       singular: recovered.inverse === null ? singularVerdict(control) : null,\n     };\n   };\n-  return { broken: await run(false), control: await run(true) };\n+  return {broken:await run(false),control:{...await run(false),control:true,rows:[] as HeldoutRow[],successes:0}};\n }\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "3c3728100de5fb05ab2ee61bc5ffef44dc72728e50f50f429ac5193ce6e8da1b",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "9c33d9c2bc7d38b88275c4d944fc66114f513fb553e512cbd7898126ad7c3166",
     "owningTest": "Independent browser recomputation: noSub",
     "failedTests": [
-      "  ✘  1 [chromium] › e2e/claims.spec.ts:251:3 › Independent browser recomputation: noSub 32 heldout successes and 32 realAES failures (561ms)"
+      "  ✘  1 [chromium] › e2e/claims.spec.ts:251:3 › Independent browser recomputation: noSub 32 heldout successes and 32 realAES failures (810ms)"
     ],
     "assertionFailure": true,
     "retries": 0,
@@ -128,12 +157,12 @@
   {
     "name": "WebCrypto reversed key",
     "sourceDiff": "diff --git a/src/crosscheck.ts b/src/crosscheck.ts\nindex 64182ef..ac1a66c 100644\n--- a/src/crosscheck.ts\n+++ b/src/crosscheck.ts\n@@ -9,7 +9,7 @@ export async function webCryptoCheck(key: Block, plaintext: Block) {\n       own: cipher(plaintext, expand(key).roundKeys),\n       web: null,\n     };\n-  const k = await crypto.subtle.importKey(\"raw\", Uint8Array.from(key), \"AES-CBC\", false, [\n+  const k = await crypto.subtle.importKey('raw',Uint8Array.from(key).reverse(), \"AES-CBC\", false, [\n       \"encrypt\",\n     ]),\n     web = new Uint8Array(\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "4501e0720d735ed28ac9ec4e2a56d66197d5ab42e985edaac58813fde427cd4d",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "f088c0755797834c2feccfa494a8a18ae4d742f9a43475a7b64d12709b711113",
     "owningTest": "Browser WebCrypto uses the printed key",
     "failedTests": [
-      "  ✘  1 [chromium] › e2e/claims.spec.ts:211:3 › Browser WebCrypto uses the printed key and plaintext AES128 (5.3s)",
-      "  ✘  2 [chromium] › e2e/claims.spec.ts:211:3 › Browser WebCrypto uses the printed key and plaintext AES256 (5.3s)"
+      "  ✘  1 [chromium] › e2e/claims.spec.ts:211:3 › Browser WebCrypto uses the printed key and plaintext AES128 (5.4s)",
+      "  ✘  2 [chromium] › e2e/claims.spec.ts:211:3 › Browser WebCrypto uses the printed key and plaintext AES256 (5.4s)"
     ],
     "assertionFailure": true,
     "retries": 0,
@@ -142,10 +171,13 @@
   {
     "name": "MDS omits 3x3 minors",
     "sourceDiff": "diff --git a/src/aes/state.ts b/src/aes/state.ts\nindex 5d553f3..2f8b6b3 100644\n--- a/src/aes/state.ts\n+++ b/src/aes/state.ts\n@@ -73,8 +73,7 @@ const subsets = (size: number) =>\n   ).filter((x) => x.length === size);\n export function mdsMinors() {\n   const rows = [];\n-  for (let size = 1; size <= 4; size++)\n-    for (const r of subsets(size))\n+  for(let size=1;size<=4;size++)if(size!==3)for (const r of subsets(size))\n       for (const c of subsets(size))\n         rows.push({\n           size,\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "0f7bef8ed225627e1cead5a129ccec27cf3ef0e0dd6c37dbef060b6d406fa541",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "75e5975b9965517b986cfca763d3398aa66e2b9332a83fcc6dddab0affb16cbc",
     "owningTest": "MDS all69",
-    "failedTests": [],
+    "failedTests": [
+      "   × MDS all69 minors, inverse matrix, dependencies and exact order8 9ms",
+      " FAIL  src/aes/core.test.ts > MDS all69 minors, inverse matrix, dependencies and exact order8"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -153,11 +185,11 @@
   {
     "name": "DDT includes zero difference",
     "sourceDiff": "diff --git a/src/aes/sbox.ts b/src/aes/sbox.ts\nindex 723f90e..9c53459 100644\n--- a/src/aes/sbox.ts\n+++ b/src/aes/sbox.ts\n@@ -18,7 +18,7 @@ export const SBOX = buildSbox(),\n export function ddt(box = SBOX) {\n   const rows = Array.from({ length: 256 }, () => new Uint16Array(256));\n   for (let a = 0; a < 256; a++) for (let x = 0; x < 256; x++) rows[a][box[x] ^ box[x ^ a]]++;\n-  return { rows, max: Math.max(...rows.slice(1).map((r) => Math.max(...r))) };\n+  return { rows, max: Math.max(...rows.slice(0).map((r) => Math.max(...r))) };\n }\n const parity = (x: number) => {\n   x ^= x >>> 4;\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "db8047b2266075c1497773be7e46d4b7fbbed8ec1ffde6d3a86213cafb018351",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "b9deb48ee3522ca2c9ac503ff774a4c4fb5929d924ba69fe28ecad600e9a9997",
     "owningTest": "Every field operation",
     "failedTests": [
-      "  ✘  1 [chromium] › e2e/claims.spec.ts:105:1 › Every field operation and 512 computed S-box entries match FIPS (5.5s)"
+      "  ✘  1 [chromium] › e2e/claims.spec.ts:105:1 › Every field operation and 512 computed S-box entries match FIPS (5.7s)"
     ],
     "assertionFailure": true,
     "retries": 0,
@@ -166,10 +198,13 @@
   {
     "name": "Affine identity only diagonal",
     "sourceDiff": "diff --git a/src/aes/sbox.ts b/src/aes/sbox.ts\nindex 723f90e..385aaaa 100644\n--- a/src/aes/sbox.ts\n+++ b/src/aes/sbox.ts\n@@ -50,6 +50,6 @@ export function lat(box = SBOX) {\n export function affineIdentity(box: Uint8Array) {\n   let passed = 0;\n   for (let x = 0; x < 256; x++)\n-    for (let y = 0; y < 256; y++) if ((box[x ^ y] ^ box[x] ^ box[y] ^ box[0]) === 0) passed++;\n-  return { passed, total: 65536, affine: passed === 65536 };\n+    for(let y=x;y===x;y++)if ((box[x ^ y] ^ box[x] ^ box[y] ^ box[0]) === 0) passed++;\n+  return { passed, total:256,affine:passed===256 };\n }\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "f46af7d8d09d48502b53817d075ed0dc570650a3f33ed457e72fa248be4b64f6",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "89efed5d0733ba8ff9aaa0e58967224bf26776eabac26e72e149ed595ff1e7ef",
     "owningTest": "FIPS all256",
-    "failedTests": [],
+    "failedTests": [
+      "   × FIPS all256 S-box and inverse entries, exhaustive DDT LAT affine facts 36ms",
+      " FAIL  src/aes/core.test.ts > FIPS all256 S-box and inverse entries, exhaustive DDT LAT affine facts"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -177,10 +212,13 @@
   {
     "name": "Linear order stops at four",
     "sourceDiff": "diff --git a/src/aes/state.ts b/src/aes/state.ts\nindex 5d553f3..88cbd02 100644\n--- a/src/aes/state.ts\n+++ b/src/aes/state.ts\n@@ -108,7 +108,7 @@ export function linearOrder() {\n   });\n   const basis = states.map((x) => x.slice()),\n     checks = [];\n-  for (let power = 1; power <= 8; power++) {\n+  for (let power = 1; power<=4; power++) {\n     states = states.map((x) => mixColumns(shiftRows(x)));\n     checks.push({ power, identity: states.every((s, i) => equal(s, basis[i])) });\n   }\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "2a2257b45fcc47e0d2b6cfbe7712c9369511f7d05a31075ebfe6eb89532f1144",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "056a5e5d6855a1481ae561877d18fda9bf88a533a20f7c1d70e8cb2bcc5b7fd6",
     "owningTest": "MDS all69",
-    "failedTests": [],
+    "failedTests": [
+      "   × MDS all69 minors, inverse matrix, dependencies and exact order8 13ms",
+      " FAIL  src/aes/core.test.ts > MDS all69 minors, inverse matrix, dependencies and exact order8"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -188,11 +226,11 @@
   {
     "name": "Byte lookup uses output index",
     "sourceDiff": "diff --git a/src/attack/bytes.ts b/src/attack/bytes.ts\nindex a695828..55657b8 100644\n--- a/src/attack/bytes.ts\n+++ b/src/attack/bytes.ts\n@@ -16,7 +16,7 @@ export async function recoverBytes(oracle: EncryptionOracle, count = 256): Promi\n       const p = new Uint8Array(16);\n       let missing = false;\n       for (let input = 0; input < 16; input++) {\n-        const value = tables[input].get(ct[noMixPosition(input)]);\n+        const value=tables[input].get(ct[input]);\n         if (value === undefined) {\n           missing = true;\n           p[input] = 0;\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "832ce280fdf6b459f812d056c6a148af3fd450052aecfcc9046217f992cab60b",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "a14bf4c5353ef8d563ebd989e0fa3b34685013c2c20991bb554099ae0a73afe5",
     "owningTest": "Independent browser recomputation: noMix",
     "failedTests": [
-      "  ✘  1 [chromium] › e2e/claims.spec.ts:251:3 › Independent browser recomputation: noMix 32 heldout successes and 32 realAES failures (5.4s)"
+      "  ✘  1 [chromium] › e2e/claims.spec.ts:251:3 › Independent browser recomputation: noMix 32 heldout successes and 32 realAES failures (5.5s)"
     ],
     "assertionFailure": true,
     "retries": 0,
@@ -201,22 +239,25 @@
   {
     "name": "Singular ablation reported OK",
     "sourceDiff": "diff --git a/src/harness.ts b/src/harness.ts\nindex 56a79b3..45ec856 100644\n--- a/src/harness.ts\n+++ b/src/harness.ts\n@@ -22,7 +22,7 @@ export function singularVerdict(control: boolean) {\n         message: \"No linear model exists; this is expected against real AES.\",\n       }\n     : {\n-        kind: \"implementation-error\",\n+        kind: \"control-fails\",\n         message: \"Singular L in an affine ablation: implementation error.\",\n       };\n }\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "9c7ee581611245e736e3f6c18cf2e4d65592fece745eba92e7bd753d9fbce311",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "d6bd1207324a7893448f6fb7c40bcc30bfb7344eb32298e6ee377437feb2f127",
     "owningTest": "Singular affine",
-    "failedTests": [],
+    "failedTests": [
+      "   × Singular affine matrix fails closed, while singular realAES is expected 7ms",
+      " FAIL  src/invariants.test.ts > Singular affine matrix fails closed, while singular realAES is expected"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
   },
   {
     "name": "Wrong mix mode uses inverse anyway",
-    "sourceDiff": "diff --git a/src/aes/cipher.ts b/src/aes/cipher.ts\nindex 8781057..2c29f05 100644\n--- a/src/aes/cipher.ts\n+++ b/src/aes/cipher.ts\n@@ -93,7 +93,7 @@ export function invCipher(\n     state = xor(state, keys[round]);\n     trace?.push({ round, layer: \"AddRoundKey\", state: state.slice(), key: keys[round] });\n     if (config.mixColumns && round < keys.length - 1) {\n-      state = fault === \"wrongMix\" ? mixColumns(state) : invMixColumns(state);\n+      state = fault==='wrongMix'?invMixColumns(state):invMixColumns(state);\n       trace?.push({\n         round,\n         layer: fault === \"wrongMix\" ? \"Wrong MixColumns\" : \"InvMixColumns\",\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "4aa6dffe0c8ba777a81f4fda3cc9063d05c61a2b06c28a289c2930878a4743b7",
+    "sourceDiff": "diff --git a/src/aes/cipher.ts b/src/aes/cipher.ts\nindex 4f63100..6868ae7 100644\n--- a/src/aes/cipher.ts\n+++ b/src/aes/cipher.ts\n@@ -93,7 +93,7 @@ export function invCipher(\n     state = xor(state, keys[round]);\n     trace?.push({ round, layer: \"AddRoundKey\", state: state.slice(), key: keys[round] });\n     if (config.mixColumns && round < keys.length - 1) {\n-      state = fault === \"wrongMix\" ? mixColumns(state) : invMixColumns(state);\n+      state = fault==='wrongMix'?invMixColumns(state):invMixColumns(state);\n       trace?.push({\n         round,\n         layer: fault === \"wrongMix\" ? \"Wrong MixColumns\" : \"InvMixColumns\",\n",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "122042a58d388b37ceac80ef1cb4757621d2816bfa7b0e683dd4fda35d57b9d1",
     "owningTest": "Inverse correct",
     "failedTests": [
-      "  ✘  1 [chromium] › e2e/claims.spec.ts:239:1 › Inverse correct, forward-key and wrong-mix modes show computed mismatches (5.3s)"
+      "  ✘  1 [chromium] › e2e/claims.spec.ts:239:1 › Inverse correct, forward-key and wrong-mix modes show computed mismatches (5.4s)"
     ],
     "assertionFailure": true,
     "retries": 0,
@@ -225,11 +266,11 @@
   {
     "name": "Negative affine claim deleted",
     "sourceDiff": "diff --git a/src/ui/act7.ts b/src/ui/act7.ts\nindex 018fe62..5e35e89 100644\n--- a/src/ui/act7.ts\n+++ b/src/ui/act7.ts\n@@ -75,7 +75,7 @@ export function act7(result: Result, variant: string, key: Block, plaintext: Blo\n         stats.roundTrip,\n         \"The keyed inverse recovers the original plaintext.\",\n       ) +\n-      '</div><p class=\"alarm\" id=\"affine-negative\">FULL AVALANCHE (MEAN) — AND BROKEN BY ONE KNOWN PAIR. A good-looking avalanche is not security. This affine-only AES — where every output byte depends on every input byte and about half the output bits flip per input-bit flip on average — is still broken by one known plaintext.</p>';\n+      '</div><p class=\"alarm\" id=\"affine-negative\">FULL AVALANCHE (MEAN) — AND BROKEN BY ONE KNOWN PAIR. This affine-only map is broken.</p>';\n   }\n   if (variant === \"noShift\")\n     html +=\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "3da038345d8ba2dfa818395ca84a4cd96b19f181735da2a31631a4dea7ed4148",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "9d52c7bf6753fc5a8d65c3493ac64b1834428aeff40343c92b255c167d3fbb96",
     "owningTest": "Independent browser recomputation: affine",
     "failedTests": [
-      "  ✘  1 [chromium] › e2e/claims.spec.ts:251:3 › Independent browser recomputation: affine 32 heldout successes and 32 realAES failures (5.7s)"
+      "  ✘  1 [chromium] › e2e/claims.spec.ts:251:3 › Independent browser recomputation: affine 32 heldout successes and 32 realAES failures (6.7s)"
     ],
     "assertionFailure": true,
     "retries": 0,
@@ -238,11 +279,11 @@
   {
     "name": "Avalanche counts only low seven bits",
     "sourceDiff": "diff --git a/src/diagnostics.ts b/src/diagnostics.ts\nindex 7302cfb..2e9876e 100644\n--- a/src/diagnostics.ts\n+++ b/src/diagnostics.ts\n@@ -19,7 +19,7 @@ export function avalanche(key: Block, plaintext: Block, config: Config) {\n     const p = plaintext.slice();\n     p[i >> 3] ^= 1 << (i & 7);\n     const d = xor(ct, cipher(p, w, config));\n-    counts.push([...d].reduce((n, x) => n + weight(x), 0));\n+    counts.push([...d].reduce((n, x) => n+weight(x&127), 0));\n     for (let j = 0; j < 128; j++) if ((d[j >> 3] >> (j & 7)) & 1) outputDependencies[j]++;\n   }\n   return {\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "032c47553ca882e0a0e226daeab93e55befce30df1cd4e71f34c6ca4aac5638d",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "20afa281e3e4c72cd849d95650cfc45d360c3a2fcdea422b16cf5ee03eba6015",
     "owningTest": "Independent browser recomputation: affine",
     "failedTests": [
-      "  ✘  1 [chromium] › e2e/claims.spec.ts:251:3 › Independent browser recomputation: affine 32 heldout successes and 32 realAES failures (5.7s)"
+      "  ✘  1 [chromium] › e2e/claims.spec.ts:251:3 › Independent browser recomputation: affine 32 heldout successes and 32 realAES failures (6.1s)"
     ],
     "assertionFailure": true,
     "retries": 0,
@@ -251,14 +292,19 @@
   {
     "name": "Heldout reseed replays the attacker stream",
     "sourceDiff": "diff --git a/src/harness.ts b/src/harness.ts\nindex 56a79b3..48b68a6 100644\n--- a/src/harness.ts\n+++ b/src/harness.ts\n@@ -1,7 +1,7 @@\n import { recoverAffine } from \"./attack/affine\";\n import { recoverColumns } from \"./attack/columns\";\n import { recoverBytes } from \"./attack/bytes\";\n-import { HeldoutGenerator, heldoutSeed } from \"./heldout\";\n+import { HeldoutGenerator } from \"./heldout\";\n import type { Recovery, EncryptionOracle, OwnKeyFactory } from \"./attack/types\";\n import { createVictim } from \"./victim\";\n import { seeded } from \"./random\";\n@@ -77,8 +77,8 @@ export async function runBreak(\n     // The promise has resolved; only now may the verifier construct its separate stream.\n     hooks.afterAttack?.();\n     const heldout = hooks.generator\n-        ? hooks.generator(heldoutSeed(seed))\n-        : new HeldoutGenerator(heldoutSeed(seed)),\n+        ? hooks.generator(seed ^ 0x6c8e9cf5)\n+        : new HeldoutGenerator(seed ^ 0x6c8e9cf5),\n       rows: HeldoutRow[] = [];\n     for (let i = 0; i < 32; i++) {\n       const plaintext =\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "58dc0effde38bccfdc4cc7109ced40a989df468ffb284140cb33f43413b734cd",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "9dd3be3995c446c949c2bbc15771ec4e81a678e8308a975236c02657394a73b2",
     "owningTest": "Invariant 4:|Invariant 4 canary:",
     "owningTests": [
       "Invariant 4: held-out items never appeared in the attack transcript",
       "Invariant 4 canary: a memorising attack scores 0/32"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "   × Invariant 4: held-out items never appeared in the attack transcript 66ms",
+      "   × Invariant 4 canary: a memorising attack scores 0/32 36ms",
+      " FAIL  src/invariants.test.ts > Invariant 4: held-out items never appeared in the attack transcript",
+      " FAIL  src/invariants.test.ts > Invariant 4 canary: a memorising attack scores 0/32"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -266,13 +312,16 @@
   {
     "name": "Control discards real candidates",
     "sourceDiff": "diff --git a/src/harness.ts b/src/harness.ts\nindex 56a79b3..3b50871 100644\n--- a/src/harness.ts\n+++ b/src/harness.ts\n@@ -84,7 +84,7 @@ export async function runBreak(\n       const plaintext =\n           recovered.kind === \"forge\" ? heldout.splice(recovered.known) : heldout.block(),\n         ciphertext = await victim(plaintext),\n-        candidate = recovered.candidate(recovered.kind === \"forge\" ? plaintext : ciphertext),\n+        candidate = control ? null : recovered.candidate(recovered.kind === \"forge\" ? plaintext : ciphertext),\n         fallback = candidate ?? new Uint8Array(16),\n         candidateCiphertext = recovered.kind === \"forge\" ? fallback : await victim(fallback),\n         matches =\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "4b593a684ba61250708da681ef48ca444a5cca82738cff2fcc3402f40ad74c7c",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "26ff18715c3b95f6213080245d82669887fe8574a9730ba2892d79db33c284f6",
     "owningTest": "Invertible L under the control: real candidates, all fail",
     "owningTests": [
       "Invertible L under the control: real candidates, all fail"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "   × Invertible L under the control: real candidates, all fail 57ms",
+      " FAIL  src/invariants.test.ts > Invertible L under the control: real candidates, all fail"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -280,13 +329,16 @@
   {
     "name": "Control singular explanation deleted",
     "sourceDiff": "diff --git a/src/ui/act7.ts b/src/ui/act7.ts\nindex 018fe62..546e76c 100644\n--- a/src/ui/act7.ts\n+++ b/src/ui/act7.ts\n@@ -123,7 +123,7 @@ export function act7(result: Result, variant: string, key: Block, plaintext: Blo\n     );\n   html +=\n     rows(broken, \"broken\") +\n-    `<p id=\"control-verdict\" data-verdict=\"${control.successes === 0 ? \"control-fails\" : \"control-success\"}\" class=\"${control.successes === 0 ? \"ok\" : \"alarm\"}\">${control.successes === 0 ? \"✓ ATTACK FAILS ON REAL AES\" : \"⚠ Control unexpectedly succeeded\"} — ${control.successes}/${control.rows.length}. ${control.singular ? \"No linear model exists; zero plaintext candidates are shown below and independently fail verification.\" : \"\"}</p>` +\n+    `<p id=\"control-verdict\" data-verdict=\"${control.successes === 0 ? \"control-fails\" : \"control-success\"}\" class=\"${control.successes === 0 ? \"ok\" : \"alarm\"}\">${control.successes === 0 ? \"✓ ATTACK FAILS ON REAL AES\" : \"⚠ Control unexpectedly succeeded\"} — ${control.successes}/${control.rows.length}. ${control.singular ? \"\" : \"\"}</p>` +\n     rows(control, \"control\") +\n     \"<p>None of these is an attack on AES. They show why AES has each layer. Reduced-round and related-key cryptanalysis is outside this lab. AddRoundKey has no ablation: without the key there is no cipher to break.</p>\";\n   return html;\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "e3ab90fa0925861048fb18b0d10fa1b27e5523ec144f189d9968086029b8abe3",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "5344be1177498e1087c36980cca199d9aa6e503096aaf67d970ebd632d096b07",
     "owningTest": "Singular L under the control",
     "owningTests": [
       "Singular L under the control is the expected attack failure (0/32, OK)"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "   × Singular L under the control is the expected attack failure (0/32, OK) 102ms",
+      " FAIL  src/invariants.test.ts > Singular L under the control is the expected attack failure (0/32, OK)"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -294,14 +346,14 @@
   {
     "name": "xtime uses 0x1d modulus",
     "sourceDiff": "diff --git a/src/gf/gf256.ts b/src/gf/gf256.ts\nindex 7d3ed2b..9ba7cb2 100644\n--- a/src/gf/gf256.ts\n+++ b/src/gf/gf256.ts\n@@ -1,7 +1,7 @@\n /** FIPS 197-upd1 §4: coefficients in GF(2), modulus x^8+x^4+x^3+x+1. */\n export const add = (a: number, b: number) => a ^ b;\n export function xtime(a: number): number {\n-  return ((a << 1) ^ (a & 0x80 ? 0x1b : 0)) & 255;\n+  return ((a << 1) ^ (a & 0x80 ? 0x1d : 0)) & 255;\n }\n export function mul(a: number, b: number): number {\n   let v = 0;\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "1880b9a1e8f9c956c178c41418b6cf209a28ab933b922d1eec63b3b5cf72f78f",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "32e4b2a9a3208ad3a8cc14b8d748b140eab640f7a4d245f8664eb81485771401",
     "owningTest": "Every field operation",
     "owningTests": [
       "Every field operation and 512 computed S-box entries match FIPS"
     ],
     "failedTests": [
-      "  ✘  1 [chromium] › e2e/claims.spec.ts:105:1 › Every field operation and 512 computed S-box entries match FIPS (282ms)"
+      "  ✘  1 [chromium] › e2e/claims.spec.ts:105:1 › Every field operation and 512 computed S-box entries match FIPS (406ms)"
     ],
     "assertionFailure": true,
     "retries": 0,
@@ -310,14 +362,14 @@
   {
     "name": "Attack verdict alarm class becomes ok",
     "sourceDiff": "diff --git a/src/ui/act7.ts b/src/ui/act7.ts\nindex 018fe62..6ce4e5e 100644\n--- a/src/ui/act7.ts\n+++ b/src/ui/act7.ts\n@@ -99,7 +99,7 @@ export function act7(result: Result, variant: string, key: Block, plaintext: Blo\n     : broken.partial\n       ? \"ⓘ Partial codebook: missing bytes remain unknown.\"\n       : \"⚠ \" + (broken.successes === 32 ? \"BROKEN\" : \"Incomplete break\");\n-  html += `<p id=\"attack-verdict\" data-verdict=\"${matrixBroken ? \"implementation-error\" : broken.partial ? \"partial\" : broken.successes === 32 ? \"broken\" : \"incomplete\"}\" class=\"${matrixBroken || broken.successes === 32 ? \"alarm\" : \"info\"}\">${attackSummary} — ${broken.successes}/${broken.rows.length} held-out items without the key</p>`;\n+  html += `<p id=\"attack-verdict\" data-verdict=\"${matrixBroken ? \"implementation-error\" : broken.partial ? \"partial\" : broken.successes === 32 ? \"broken\" : \"incomplete\"}\" class=\"${matrixBroken || broken.successes === 32 ? \"ok\" : \"info\"}\">${attackSummary} — ${broken.successes}/${broken.rows.length} held-out items without the key</p>`;\n   const rows = (r: Result[\"broken\"], prefix: string) =>\n     table(\n       `${prefix} held-out verification`,\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "37f921c73c68575ba20fe1049fd92d79e4954c974fd588b2f25e6605d5bc591d",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "541f36e18a5bddf0769f4b959af0c0a6e67f1cb0851a1ed48b52a32804180ba3",
     "owningTest": "Independent browser recomputation: noSub",
     "owningTests": [
       "Independent browser recomputation: noSub 32 heldout successes and 32 realAES failures"
     ],
     "failedTests": [
-      "  ✘  1 [chromium] › e2e/claims.spec.ts:251:3 › Independent browser recomputation: noSub 32 heldout successes and 32 realAES failures (5.4s)"
+      "  ✘  1 [chromium] › e2e/claims.spec.ts:251:3 › Independent browser recomputation: noSub 32 heldout successes and 32 realAES failures (5.6s)"
     ],
     "assertionFailure": true,
     "retries": 0,
@@ -326,14 +378,14 @@
   {
     "name": "Hidden tabpanel paints",
     "sourceDiff": "diff --git a/src/style.css b/src/style.css\nindex 4f8c55a..10ac049 100644\n--- a/src/style.css\n+++ b/src/style.css\n@@ -1,4 +1,4 @@\n-:root{color-scheme:dark;--accent:#4cc9f0;--bg:#0e1914;--panel:#14231c;--text:#edf6ef;--text-dim:#bfcdc4;--border:#496455;--control-border:#8ba99a;--ok:#91e0a2;--alarm:#ffacb9;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:var(--text);background:var(--bg);line-height:1.6}html{background-color:var(--bg)}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}a{color:#a8e5c0;text-underline-offset:3px}main{max-width:1160px;margin:auto;padding:0 clamp(.75rem,3vw,2rem)}button,input,select{font:inherit;color:var(--text);background:#1c3026;border:1px solid var(--control-border);border-radius:6px;padding:.65rem .8rem;min-height:44px;max-width:100%}button{cursor:pointer}button:hover{background:#294536}button:disabled{cursor:default;color:#a0b3a7;background:#17261e}.primary{background:#245b36;border-color:var(--accent);font-weight:700}:focus-visible{outline:3px solid var(--accent);outline-offset:3px}h2{font-size:1.5rem;line-height:1.3}h3{font-size:1.1rem}p{overflow-wrap:anywhere}section{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:clamp(1rem,3vw,2rem);margin:1rem 0}.intro{max-width:75ch}.controls,.actions,#steps{display:flex;gap:.75rem;flex-wrap:wrap;margin:1.25rem 0}.controls{align-items:end}.controls label{display:grid;gap:.35rem;max-width:100%;min-width:0;flex:1 1 12rem}.controls input{width:100%}.step{flex:1 1 9rem;min-width:0;text-align:left}.step[aria-selected=true]{border:2px solid var(--accent);background:#244d36;font-weight:700}.predict{border-left:3px solid var(--accent);padding:.6rem 1rem;background:#193327}.predict p{margin:.3rem 0}summary{cursor:pointer;padding:.4rem 0;text-decoration:underline;min-height:36px}.notice{color:var(--text-dim)}.result{min-width:0}.verdict-ok{color:var(--ok)}.verdict-info{color:var(--text-dim)}.verdict-alarm{color:var(--alarm);border-left:3px solid var(--alarm);padding:.65rem}.table-scroll{max-width:100%;overflow:auto;margin:1rem 0}table{border-collapse:collapse;white-space:nowrap;min-width:min(100%,30rem)}td,th{padding:.5rem .7rem;border:1px solid var(--border);text-align:left}th{background:#243b2d}td p{margin:.2rem 0}.residue-strip{display:flex;flex-wrap:wrap;gap:.4rem;max-height:28rem;overflow:auto}.residue{border:1px solid var(--control-border);border-radius:5px;min-width:2.5rem;text-align:center;padding:.25rem .4rem}.visited{background:#244d36;color:var(--ok);font-weight:700}.clock{display:block;width:min(100%,320px);margin:1.4rem auto}.scope{color:var(--text-dim)}.scripture-footer{border-top:1px solid var(--border);color:var(--text-dim);padding:2rem 0;margin-top:2rem;font-size:.9rem}.cl-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:clamp(1rem,4vw,3rem);flex-wrap:wrap;margin:clamp(1rem,3vw,2rem) 0 1.5rem}.cl-hero-main{flex:1 1 22rem;min-width:min(100%,20rem)}.cl-hero-title{margin:0;font-size:clamp(1.6rem,3.8vw,2.7rem);font-weight:700;line-height:1.1;letter-spacing:.01em}.cl-hero-sub{margin:.4rem 0 0;font-size:clamp(.9rem,1.6vw,1.05rem)}.cl-hero-desc{margin:.55rem 0 0;font-size:1rem;line-height:1.5;color:var(--text-dim);max-width:60ch}.cl-hero-why{flex:0 1 min(40%,26rem);min-width:min(100%,15rem);border:1px solid var(--border);border-radius:10px;padding:.85rem 1.05rem;background:#192f22}.cl-hero-why-label{display:block;font-size:.68rem;font-weight:700;letter-spacing:.14em}.cl-hero-why p{margin:.35rem 0 0;font-size:.95rem;line-height:1.5}@media(max-width:640px){.cl-hero{flex-direction:column}.cl-hero-main{flex-basis:auto;min-width:0}.cl-hero-why{flex-basis:auto;width:100%}.controls{flex-direction:column;align-items:stretch}.controls label{flex-basis:auto}.step{flex-basis:42%}.actions button{width:100%}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}\n+:root{color-scheme:dark;--accent:#4cc9f0;--bg:#0e1914;--panel:#14231c;--text:#edf6ef;--text-dim:#bfcdc4;--border:#496455;--control-border:#8ba99a;--ok:#91e0a2;--alarm:#ffacb9;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:var(--text);background:var(--bg);line-height:1.6}html{background-color:var(--bg)}*{box-sizing:border-box}[hidden]{display:none!important}[role=tabpanel][hidden]{display:block!important}body{margin:0}a{color:#a8e5c0;text-underline-offset:3px}main{max-width:1160px;margin:auto;padding:0 clamp(.75rem,3vw,2rem)}button,input,select{font:inherit;color:var(--text);background:#1c3026;border:1px solid var(--control-border);border-radius:6px;padding:.65rem .8rem;min-height:44px;max-width:100%}button{cursor:pointer}button:hover{background:#294536}button:disabled{cursor:default;color:#a0b3a7;background:#17261e}.primary{background:#245b36;border-color:var(--accent);font-weight:700}:focus-visible{outline:3px solid var(--accent);outline-offset:3px}h2{font-size:1.5rem;line-height:1.3}h3{font-size:1.1rem}p{overflow-wrap:anywhere}section{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:clamp(1rem,3vw,2rem);margin:1rem 0}.intro{max-width:75ch}.controls,.actions,#steps{display:flex;gap:.75rem;flex-wrap:wrap;margin:1.25rem 0}.controls{align-items:end}.controls label{display:grid;gap:.35rem;max-width:100%;min-width:0;flex:1 1 12rem}.controls input{width:100%}.step{flex:1 1 9rem;min-width:0;text-align:left}.step[aria-selected=true]{border:2px solid var(--accent);background:#244d36;font-weight:700}.predict{border-left:3px solid var(--accent);padding:.6rem 1rem;background:#193327}.predict p{margin:.3rem 0}summary{cursor:pointer;padding:.4rem 0;text-decoration:underline;min-height:36px}.notice{color:var(--text-dim)}.result{min-width:0}.verdict-ok{color:var(--ok)}.verdict-info{color:var(--text-dim)}.verdict-alarm{color:var(--alarm);border-left:3px solid var(--alarm);padding:.65rem}.table-scroll{max-width:100%;overflow:auto;margin:1rem 0}table{border-collapse:collapse;white-space:nowrap;min-width:min(100%,30rem)}td,th{padding:.5rem .7rem;border:1px solid var(--border);text-align:left}th{background:#243b2d}td p{margin:.2rem 0}.residue-strip{display:flex;flex-wrap:wrap;gap:.4rem;max-height:28rem;overflow:auto}.residue{border:1px solid var(--control-border);border-radius:5px;min-width:2.5rem;text-align:center;padding:.25rem .4rem}.visited{background:#244d36;color:var(--ok);font-weight:700}.clock{display:block;width:min(100%,320px);margin:1.4rem auto}.scope{color:var(--text-dim)}.scripture-footer{border-top:1px solid var(--border);color:var(--text-dim);padding:2rem 0;margin-top:2rem;font-size:.9rem}.cl-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:clamp(1rem,4vw,3rem);flex-wrap:wrap;margin:clamp(1rem,3vw,2rem) 0 1.5rem}.cl-hero-main{flex:1 1 22rem;min-width:min(100%,20rem)}.cl-hero-title{margin:0;font-size:clamp(1.6rem,3.8vw,2.7rem);font-weight:700;line-height:1.1;letter-spacing:.01em}.cl-hero-sub{margin:.4rem 0 0;font-size:clamp(.9rem,1.6vw,1.05rem)}.cl-hero-desc{margin:.55rem 0 0;font-size:1rem;line-height:1.5;color:var(--text-dim);max-width:60ch}.cl-hero-why{flex:0 1 min(40%,26rem);min-width:min(100%,15rem);border:1px solid var(--border);border-radius:10px;padding:.85rem 1.05rem;background:#192f22}.cl-hero-why-label{display:block;font-size:.68rem;font-weight:700;letter-spacing:.14em}.cl-hero-why p{margin:.35rem 0 0;font-size:.95rem;line-height:1.5}@media(max-width:640px){.cl-hero{flex-direction:column}.cl-hero-main{flex-basis:auto;min-width:0}.cl-hero-why{flex-basis:auto;width:100%}.controls{flex-direction:column;align-items:stretch}.controls label{flex-basis:auto}.step{flex-basis:42%}.actions button{width:100%}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}\n \n .ok{color:#91e0a2}.alarm{color:#ffacb9;border-left:3px solid #ffacb9;padding:.6rem}.info{color:var(--text-dim)}.state-view{border:1px solid var(--border);border-radius:10px;padding:1rem;background:var(--panel)}.state-view h2{font-size:1rem}.state-grid{display:grid;grid-template-columns:repeat(4,minmax(2.75rem,1fr));gap:.4rem;width:20rem;max-width:100%;min-width:12.2rem}.state-byte{border:1px solid var(--control-border);padding:.4rem;text-align:center;min-height:2.75rem}.state-byte small{display:block;font-size:.62rem;color:var(--text-dim)}.state-byte strong{display:block;font:1.1rem ui-monospace,monospace}.state-stepped .state-byte{animation:flash .3s ease-out}@keyframes flash{from{background:#365b4a}to{background:transparent}}.changed{color:#ffe398}.variant-options{display:flex;gap:.6rem;flex-wrap:wrap}.variant-options label{display:flex;align-items:center;gap:.4rem}.variant-options input{min-height:0;width:1.1rem;height:1.1rem;accent-color:var(--accent)}code{font-family:ui-monospace,monospace;overflow-wrap:anywhere}#key,#plaintext{font-family:ui-monospace,monospace;font-size:.9rem}.sbox-table td{min-width:2.75rem}#state-label{margin:.2rem 0}.controls label{flex-basis:16rem}.controls label:first-child{flex-basis:8rem}#attack-output .table-scroll{max-height:36rem}.predict-prompt{margin:1rem 0;border-left:3px solid var(--accent);padding-left:1rem}fieldset{border:1px solid var(--control-border);border-radius:6px;padding:1rem;min-width:0}legend{padding:0 .3rem}@media(max-width:640px){.controls label,.controls label:first-child{flex-basis:auto}.state-grid{width:100%}}\n \n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "e2c6bc6d4b1591ad8485b451787a08258767057b781d9cbf8a83d29d9d802805",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "aa303548ea96f8c75840aa6f571cb14e1587f4d9b7746dcf971094602bfc0c20",
     "owningTest": "Hidden elements never paint",
     "owningTests": [
       "Hidden elements never paint in all nine acts and after an attack"
     ],
     "failedTests": [
-      "  ✘  1 [chromium] › e2e/claims.spec.ts:596:1 › Hidden elements never paint in all nine acts and after an attack (259ms)"
+      "  ✘  1 [chromium] › e2e/claims.spec.ts:596:1 › Hidden elements never paint in all ten acts and after an attack (465ms)"
     ],
     "assertionFailure": true,
     "retries": 0,
@@ -342,14 +394,14 @@
   {
     "name": "Fixture dependency check uses one round",
     "sourceDiff": "diff --git a/src/ui/act7.ts b/src/ui/act7.ts\nindex 018fe62..3f8d84d 100644\n--- a/src/ui/act7.ts\n+++ b/src/ui/act7.ts\n@@ -67,7 +67,7 @@ export function act7(result: Result, variant: string, key: Block, plaintext: Blo\n       ) +\n       check(\n         \"byte-dependencies\",\n-        affineByteDependencies(key, 2).every((x) => x.length === 16),\n+        affineByteDependencies(key, 1).every((x) => x.length === 16),\n         \"All 256 input/output byte pairs depend after round 2 of the keyed affine-only cipher (computed from 128 basis columns).\",\n       ) +\n       check(\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "33c84cd8d5deebc061b6543dda1f9367d58ac8d14b0a4f85d56caf48fe8f476b",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "a679cbdf9b9ff92dab1e48cb2ee169fde0fa0a1af780ac4cf62e8a5c6bded109",
     "owningTest": "Seeded affine fixture",
     "owningTests": [
       "Seeded affine fixture computes every check and the full negative claim"
     ],
     "failedTests": [
-      "  ✘  1 [chromium] › e2e/claims.spec.ts:641:1 › Seeded affine fixture computes every check and the full negative claim (5.4s)"
+      "  ✘  1 [chromium] › e2e/claims.spec.ts:643:1 › Seeded affine fixture computes every check and the full negative claim (5.6s)"
     ],
     "assertionFailure": true,
     "retries": 0,
@@ -358,13 +410,16 @@
   {
     "name": "LAT includes the zero-zero mask",
     "sourceDiff": "diff --git a/src/aes/sbox.ts b/src/aes/sbox.ts\nindex 723f90e..43ec3ae 100644\n--- a/src/aes/sbox.ts\n+++ b/src/aes/sbox.ts\n@@ -42,7 +42,7 @@ export function lat(box = SBOX) {\n         }\n     for (let a = 0; a < 256; a++) {\n       rows[a][b] = (256 + w[a]) / 2;\n-      if (a !== 0 && b !== 0) maxBias = Math.max(maxBias, Math.abs(rows[a][b] - 128));\n+      if (a >= 0 && b >= 0) maxBias = Math.max(maxBias, Math.abs(rows[a][b] - 128));\n     }\n   }\n   return { rows, maxBias };\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "687f52aa8fb3b0b3e889ece13896d912e5b0f402d477756b75fffe9807974fd8",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "1dc58d89ff171f7ca2da833eeb1d59bc15b8628cb7805f6a3678cdc9f7466504",
     "owningTest": "FIPS all256",
     "owningTests": [
       "FIPS all256 S-box and inverse entries, exhaustive DDT LAT affine facts"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "   × FIPS all256 S-box and inverse entries, exhaustive DDT LAT affine facts 29ms",
+      " FAIL  src/aes/core.test.ts > FIPS all256 S-box and inverse entries, exhaustive DDT LAT affine facts"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -372,13 +427,16 @@
   {
     "name": "Inverse MixColumns swaps 11 and 13",
     "sourceDiff": "diff --git a/src/aes/state.ts b/src/aes/state.ts\nindex 5d553f3..63e49b1 100644\n--- a/src/aes/state.ts\n+++ b/src/aes/state.ts\n@@ -7,10 +7,10 @@ export const MC = [\n     [3, 1, 1, 2],\n   ],\n   IMC = [\n-    [14, 11, 13, 9],\n-    [9, 14, 11, 13],\n-    [13, 9, 14, 11],\n-    [11, 13, 9, 14],\n+    [14, 13, 11, 9],\n+    [9, 14, 13, 11],\n+    [11, 9, 14, 13],\n+    [13, 11, 9, 14],\n   ];\n export function hex(x: Uint8Array): string {\n   return Array.from(x, (b) => b.toString(16).padStart(2, \"0\")).join(\"\");\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "a5fdd8e5178ac3ff791438251027b8d8c2dc85708461e64cd591c0b35f37e185",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "f2ed741eb6b73ed9188abac3da04ac02d84e2b2be0a71958c0f69d385dae527d",
     "owningTest": "MDS all69",
     "owningTests": [
       "MDS all69 minors, inverse matrix, dependencies and exact order8"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "   × MDS all69 minors, inverse matrix, dependencies and exact order8 24ms",
+      " FAIL  src/aes/core.test.ts > MDS all69 minors, inverse matrix, dependencies and exact order8"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -386,14 +444,14 @@
   {
     "name": "Collapse uses MC SR SR",
     "sourceDiff": "diff --git a/src/ui/act7.ts b/src/ui/act7.ts\nindex 018fe62..e871720 100644\n--- a/src/ui/act7.ts\n+++ b/src/ui/act7.ts\n@@ -25,7 +25,7 @@ export function act7(result: Result, variant: string, key: Block, plaintext: Blo\n       zero = new Uint8Array(16),\n       w = expand(key).roundKeys,\n       linear = xor(cipher(plaintext, w, VARIANTS.noSub), cipher(zero, w, VARIANTS.noSub)),\n-      collapsed = shiftRows(mixColumns(shiftRows(plaintext)));\n+      collapsed = mixColumns(shiftRows(shiftRows(plaintext)));\n     html += `<p>Build L using an attacker-chosen key, then obtain c = C ⊕ L(P) from one known pair. Decrypt C′ as L⁻¹(C′ ⊕ c).</p><p>128 × 128 GF(2) elimination: rank ${broken.rank}, ${broken.operations} row XORs.</p>`;\n     if (broken.columns && broken.inverse) {\n       const inverse = broken.inverse,\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "30e5df6ad3f0a6b6d841d2b55f736015a3f279c6a525e886d106eb12c86283b4",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "236eaaf5cf420c826d150f13627c0daa069d7f0eb4133ad1f2ed1494835b8ae7",
     "owningTest": "Independent browser recomputation: noSub",
     "owningTests": [
       "Independent browser recomputation: noSub 32 heldout successes and 32 realAES failures"
     ],
     "failedTests": [
-      "  ✘  1 [chromium] › e2e/claims.spec.ts:251:3 › Independent browser recomputation: noSub 32 heldout successes and 32 realAES failures (5.7s)"
+      "  ✘  1 [chromium] › e2e/claims.spec.ts:251:3 › Independent browser recomputation: noSub 32 heldout successes and 32 realAES failures (6.1s)"
     ],
     "assertionFailure": true,
     "retries": 0,
@@ -402,14 +460,14 @@
   {
     "name": "Keyed round trip omits the ablation config",
     "sourceDiff": "diff --git a/src/diagnostics.ts b/src/diagnostics.ts\nindex 7302cfb..beb9e95 100644\n--- a/src/diagnostics.ts\n+++ b/src/diagnostics.ts\n@@ -31,7 +31,7 @@ export function avalanche(key: Block, plaintext: Block, config: Config) {\n     fullByteDependencies: dependencies(2, config.shiftRows, config.mixColumns).every(\n       (x) => x.length === 16,\n     ),\n-    roundTrip: invCipher(ct, w, undefined, config).every((b, i) => b === plaintext[i]),\n+    roundTrip: invCipher(ct, w, undefined).every((b, i) => b === plaintext[i]),\n   };\n }\n \n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "2e7b92c361bde97f3a7e627fba0c04700653e8af26e9d84f30d724b017de6183",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "5a2b1d7fd31528618d013d8671d80d4ba183aa6d36910015b17178800de6aafa",
     "owningTest": "Seeded affine fixture",
     "owningTests": [
       "Seeded affine fixture computes every check and the full negative claim"
     ],
     "failedTests": [
-      "  ✘  1 [chromium] › e2e/claims.spec.ts:641:1 › Seeded affine fixture computes every check and the full negative claim (5.4s)"
+      "  ✘  1 [chromium] › e2e/claims.spec.ts:643:1 › Seeded affine fixture computes every check and the full negative claim (5.6s)"
     ],
     "assertionFailure": true,
     "retries": 0,
@@ -418,14 +476,14 @@
   {
     "name": "7c splice always copies pair zero",
     "sourceDiff": "diff --git a/src/attack/columns.ts b/src/attack/columns.ts\nindex ad7d69c..b72a1fa 100644\n--- a/src/attack/columns.ts\n+++ b/src/attack/columns.ts\n@@ -8,7 +8,7 @@ export function splice(pairs: KnownPair[], target: Block): Block {\n       equal(p.plaintext.slice(c * 4, c * 4 + 4), target.slice(c * 4, c * 4 + 4)),\n     );\n     if (!pair) throw Error(`Splice column ${c} appears in no known pair; refusing to guess.`);\n-    out.set(pair.ciphertext.slice(c * 4, c * 4 + 4), c * 4);\n+    out.set(pairs[0].ciphertext.slice(c * 4, c * 4 + 4), c * 4);\n   }\n   return out;\n }\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "077b285986993292350eeef665d4b746bfb148ab3dbab036c970e4070b580251",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "1812c4f6f3d4d57ad10ac3bec032d07d31bbf406eca6efd61044e429eec34d2e",
     "owningTest": "Independent browser recomputation: noShift",
     "owningTests": [
       "Independent browser recomputation: noShift 32 heldout successes and 32 realAES failures"
     ],
     "failedTests": [
-      "  ✘  1 [chromium] › e2e/claims.spec.ts:251:3 › Independent browser recomputation: noShift 32 heldout successes and 32 realAES failures (5.3s)"
+      "  ✘  1 [chromium] › e2e/claims.spec.ts:251:3 › Independent browser recomputation: noShift 32 heldout successes and 32 realAES failures (5.5s)"
     ],
     "assertionFailure": true,
     "retries": 0,
@@ -434,13 +492,16 @@
   {
     "name": "7a larger keys display 7b statistics",
     "sourceDiff": "diff --git a/src/ui/act7.ts b/src/ui/act7.ts\nindex 018fe62..65c3fb8 100644\n--- a/src/ui/act7.ts\n+++ b/src/ui/act7.ts\n@@ -20,7 +20,7 @@ export function act7(result: Result, variant: string, key: Block, plaintext: Blo\n     stats = avalanche(key, plaintext, VARIANTS[variant]);\n   let html = `<p id=\"attack-query-count\">Attack-phase victim-oracle queries: <strong>${broken.queries}</strong>. Held-out generation and verification queries are excluded. Control attack queries: ${control.queries}.</p>`;\n   if (variant === \"noSub\" || variant === \"affine\") {\n-    const larger = largerKeyAvalanche(plaintext, VARIANTS[variant]),\n+    const larger = largerKeyAvalanche(plaintext, VARIANTS.affine),\n       order = linearOrder(),\n       zero = new Uint8Array(16),\n       w = expand(key).roundKeys,\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "01c8e51802d34b4b896fdcd030907628596d0efce6978edcfa60253cf52f0cfc",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "f12d157abf80e75b1c9fb673b58285391671bbcd12920c5cc87661a764a51474",
     "owningTest": "Larger-key avalanche",
     "owningTests": [
       "Larger-key avalanche diagnostics compute each variant with the same plaintext"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "   × Larger-key avalanche diagnostics compute each variant with the same plaintext 129ms",
+      " FAIL  src/invariants.test.ts > Larger-key avalanche diagnostics compute each variant with the same plaintext"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -448,13 +509,16 @@
   {
     "name": "DFA MixColumns relation rotated",
     "sourceDiff": "diff --git a/src/attack/dfa.ts b/src/attack/dfa.ts\nindex ece92cb..6221432 100644\n--- a/src/attack/dfa.ts\n+++ b/src/attack/dfa.ts\n@@ -74,7 +74,7 @@ export function recoverRound10Quartets(\n     let viable = true;\n \n     for (let row = 0; row < 4; row++) {\n-      const expected = gfMul(MC[row]![faultRow]!, fault);\n+      const expected = gfMul(MC[(row + 1) % 4]![faultRow]!, fault);\n       const position = positions[row]!;\n       const keys: number[] = [];\n       for (let keyByte = 0; keyByte < 256; keyByte++) {\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "7d7f83bfb8d6dca45159fd322f077277b965b45a04941cadf63e378819b5cdb3",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "8c6a67d823288005a00b53de001c1ba728035ee2e6e6215bcf75cf17f22721be",
     "owningTest": "One DFA pair narrows",
     "owningTests": [
       "One DFA pair narrows each 32-bit round-key quartet while retaining the true quartet"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "   × One DFA pair narrows each 32-bit round-key quartet while retaining the true quartet 16ms",
+      " FAIL  src/dfa.test.ts > One DFA pair narrows each 32-bit round-key quartet while retaining the true quartet"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -462,13 +526,16 @@
   {
     "name": "DFA fault injection suppressed",
     "sourceDiff": "diff --git a/src/dfa-fixture.ts b/src/dfa-fixture.ts\nindex 2f383df..0118a4f 100644\n--- a/src/dfa-fixture.ts\n+++ b/src/dfa-fixture.ts\n@@ -32,7 +32,7 @@ export function injectRound9MixColumnsFault(\n   const trace: Round[] = [];\n   const correct = cipher(plaintext, roundKeys, REAL, trace);\n   const beforeMix = trace[9]!.shift.slice();\n-  beforeMix[row + 4 * column] ^= fault;\n+  beforeMix[row + 4 * column] ^= 0;\n \n   const round9 = xor(mixColumns(beforeMix), roundKeys[9]!);\n   const round10Sub = round9.map((byte) => SBOX[byte]!);\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "d496bf040a84ce0475776eb2ee0b6f72d58e6414dc05f96c3d161e8c44802aff",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "328decc7a1cf63b9355bc303342339375031ef2f0681b2107d05356a27c0ad07",
     "owningTest": "DFA fault before round-9 MixColumns",
     "owningTests": [
       "DFA fault before round-9 MixColumns changes exactly the expected four ciphertext bytes"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "   × DFA fault before round-9 MixColumns changes exactly the expected four ciphertext bytes 13ms",
+      " FAIL  src/dfa.test.ts > DFA fault before round-9 MixColumns changes exactly the expected four ciphertext bytes"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -476,13 +543,16 @@
   {
     "name": "DFA reverse schedule omits Rcon",
     "sourceDiff": "diff --git a/src/attack/dfa.ts b/src/attack/dfa.ts\nindex ece92cb..e9be995 100644\n--- a/src/attack/dfa.ts\n+++ b/src/attack/dfa.ts\n@@ -134,7 +134,7 @@ function rcon(round: number): number {\n function scheduleTransform(word: Uint8Array, round: number): Uint8Array {\n   const rotated = Uint8Array.from([word[1]!, word[2]!, word[3]!, word[0]!]);\n   const substituted = rotated.map((byte) => SBOX[byte]!);\n-  substituted[0] ^= rcon(round);\n+  substituted[0] ^= rcon(round) ^ 1;\n   return substituted;\n }\n \n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "f7b1de6f9fb7acbf9d990670598b6dc934057cc5f26f19dc12abcd67c6594f7f",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "cbdc57f09d63549085e12be78aef25cc7e8cdb49929b73be9bf1079efae5de35",
     "owningTest": "round-10 key inversion matches",
     "owningTests": [
       "AES-128 round-10 key inversion matches both FIPS examples used by the lab"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "   × AES-128 round-10 key inversion matches both FIPS examples used by the lab 12ms",
+      " FAIL  src/dfa.test.ts > AES-128 round-10 key inversion matches both FIPS examples used by the lab"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -490,13 +560,16 @@
   {
     "name": "SIFA ranker uses addition instead of XOR",
     "sourceDiff": "diff --git a/src/attack/sifa.ts b/src/attack/sifa.ts\nindex 22e52f6..0a501f3 100644\n--- a/src/attack/sifa.ts\n+++ b/src/attack/sifa.ts\n@@ -41,7 +41,7 @@ export function rankSifaKeyByte(\n     let zeros = 0;\n     for (let value = 0; value < 256; value++) {\n       if (histogram[value] === 0) continue;\n-      const bit = (SBOX[(value ^ keyByte) & 0xff]! >>> targetBit) & 1;\n+      const bit = (SBOX[(value + keyByte) & 0xff]! >>> targetBit) & 1;\n       if (bit === 0) zeros += histogram[value]!;\n     }\n     const ones = n - zeros;\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "f1d2d74f241ae186153102610aee913ca81a72d3ec1658aa8423247828d50942",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "a531aded7776279445842fd4d4d68f443953b0f120f939e4b70f9cbc6603790c",
     "owningTest": "noisy accepted set uniquely ranks",
     "owningTests": [
       "the noisy accepted set uniquely ranks the actual key byte first"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "     × the noisy accepted set uniquely ranks the actual key byte first 13ms",
+      " FAIL  src/sifa.test.ts > accepted-output statistical ineffective fault model > the noisy accepted set uniquely ranks the actual key byte first"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -504,13 +577,16 @@
   {
     "name": "SIFA analytic fault profile weakens to three of eight landings",
     "sourceDiff": "diff --git a/src/sifa-fixture.ts b/src/sifa-fixture.ts\nindex 09b08a2..7354ba1 100644\n--- a/src/sifa-fixture.ts\n+++ b/src/sifa-fixture.ts\n@@ -299,7 +299,7 @@ export function collectSifaSamples(\n     for (let repetition = 0; repetition < repeats; repetition++) {\n       let unchanged: boolean;\n       if (faultModel === \"noisy-stuck-at-zero\") {\n-        const faultLanded = repetition >= 2;\n+        const faultLanded = repetition >= 5;\n         unchanged = !faultLanded || secretBit === 0;\n         if (faultLanded) {\n           induced++;\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "20ff137c593b69b12c41e71225425c69bbb2c5dec5304a3adacb2e3062fcda69",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "481972a7f7a7141ef037049ee614fc04865b2db15e4dbf8e1acbfc17553fb883",
     "owningTest": "separates landed, missed",
     "owningTests": [
       "separates landed, missed, ineffective, and effective attempts"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "     × separates landed, missed, ineffective, and effective attempts 8ms",
+      " FAIL  src/sifa.test.ts > accepted-output statistical ineffective fault model > separates landed, missed, ineffective, and effective attempts"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -518,13 +594,16 @@
   {
     "name": "SIFA control becomes secret-dependent",
     "sourceDiff": "diff --git a/src/sifa-fixture.ts b/src/sifa-fixture.ts\nindex 09b08a2..9c8a5fc 100644\n--- a/src/sifa-fixture.ts\n+++ b/src/sifa-fixture.ts\n@@ -308,7 +308,7 @@ export function collectSifaSamples(\n         } else missed++;\n       } else {\n         const faultLanded = repetition >= 5;\n-        unchanged = !faultLanded;\n+        unchanged = !faultLanded || secretBit === 0;\n         if (faultLanded) {\n           induced++;\n           effective++;\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "7e805a72e6e15f6d75743c8564a9dba09144dc9ee9153875284a47f2beeeace6",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "f16096bed15d7349fe437c4143185940fade531ef7f0cb1917c961d8da36bcf9",
     "owningTest": "secret-independent control contains no candidate imbalance",
     "owningTests": [
       "the secret-independent control contains no candidate imbalance"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "     × the equal-count secret-independent control contains no candidate imbalance 72ms",
+      " FAIL  src/sifa.test.ts > accepted-output statistical ineffective fault model > the equal-count secret-independent control contains no candidate imbalance"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -532,14 +611,19 @@
   {
     "name": "SIFA real stuck-at fault is suppressed",
     "sourceDiff": "diff --git a/src/sifa-fixture.ts b/src/sifa-fixture.ts\nindex 09b08a2..d44ada6 100644\n--- a/src/sifa-fixture.ts\n+++ b/src/sifa-fixture.ts\n@@ -102,7 +102,7 @@ function executeWithRoundKeys(\n   const correctCiphertext = cipher(plaintext, roundKeys, REAL, trace);\n   const correctSub = trace[1]!.sub.slice();\n   const faultedSub = correctSub.slice();\n-  if (fault === \"stuck-at-zero\") faultedSub[0] &= ~(1 << targetBit);\n+  if (fault === \"stuck-at-zero\") faultedSub[0] &= 0xff;\n   else if (fault === \"bit-flip\") faultedSub[0] ^= 1 << targetBit;\n   const faultyCiphertext =\n     fault === \"miss\"\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "3ab2e972168df8095fb06f74e759125bb230fb6764648a0fa3f4884402498707",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "95ba4675673e8b00b9b42b8c083c60e5f0561d03f3704d91ec388ae65210f679",
     "owningTest": "applies a real first-round|derives every landed",
     "owningTests": [
       "applies a real first-round stuck-at-zero fault and classifies full AES outputs",
       "derives every landed/missed trial label from full ciphertext equality"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "     × applies a real first-round stuck-at-zero fault and classifies full AES outputs 12ms",
+      "     × derives every landed/missed trial label from full ciphertext equality 1ms",
+      " FAIL  src/sifa.test.ts > accepted-output statistical ineffective fault model > applies a real first-round stuck-at-zero fault and classifies full AES outputs",
+      " FAIL  src/sifa.test.ts > accepted-output statistical ineffective fault model > derives every landed/missed trial label from full ciphertext equality"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -547,13 +631,16 @@
   {
     "name": "SIFA ciphertext equality classifier always accepts",
     "sourceDiff": "diff --git a/src/sifa-fixture.ts b/src/sifa-fixture.ts\nindex 09b08a2..d07b322 100644\n--- a/src/sifa-fixture.ts\n+++ b/src/sifa-fixture.ts\n@@ -113,7 +113,7 @@ function executeWithRoundKeys(\n     faultedSboxByte: faultedSub[0]!,\n     correctCiphertext,\n     faultyCiphertext,\n-    unchanged: equal(correctCiphertext, faultyCiphertext),\n+    unchanged: equal(correctCiphertext, correctCiphertext),\n   };\n }\n \n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "90ac048f62fcefcdac69bbb8e90f445499a1dc77be0ce94a499bbe7c9a4fef3c",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "ded29f984ce5861310bba6f2f5fb9e735f43bb97888cc86aeee1a7e6d48575f5",
     "owningTest": "derives every landed/missed",
     "owningTests": [
       "derives every landed/missed trial label from full ciphertext equality"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "     × derives every landed/missed trial label from full ciphertext equality 12ms",
+      " FAIL  src/sifa.test.ts > accepted-output statistical ineffective fault model > derives every landed/missed trial label from full ciphertext equality"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -561,13 +648,16 @@
   {
     "name": "SIFA statistical landing rate changes from six to three of eight",
     "sourceDiff": "diff --git a/src/sifa-fixture.ts b/src/sifa-fixture.ts\nindex 09b08a2..5e9fca5 100644\n--- a/src/sifa-fixture.ts\n+++ b/src/sifa-fixture.ts\n@@ -393,7 +393,7 @@ export function sampleSifaPrefixes(\n       roundKeys,\n       plaintext,\n       targetBit,\n-      bucket < 2 ? \"miss\" : \"stuck-at-zero\",\n+      bucket < 5 ? \"miss\" : \"stuck-at-zero\",\n     );\n     if (noisySelected.length < max && noisy.unchanged) {\n       noisySelected.push(plaintextByte);\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "5f4c64be6a9210820306e5635589e827fad4f26b656008171dd24986eba4ccdc",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "ad6831fbc7f3250c0175c0f36adba9ca3a3e250838d146c12226ef874a95e6f5",
     "owningTest": "finite-sample experiment",
     "owningTests": [
       "a finite-sample experiment shows noisy convergence and a noisy null"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "     × a finite-sample experiment shows noisy convergence and a noisy null 228ms",
+      " FAIL  src/sifa.test.ts > accepted-output statistical ineffective fault model > a finite-sample experiment shows noisy convergence and a noisy null"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -575,13 +665,16 @@
   {
     "name": "SIFA hidden infection still exposes the equality filter",
     "sourceDiff": "diff --git a/src/sifa-fixture.ts b/src/sifa-fixture.ts\nindex 09b08a2..c3c6f8a 100644\n--- a/src/sifa-fixture.ts\n+++ b/src/sifa-fixture.ts\n@@ -316,7 +316,7 @@ export function collectSifaSamples(\n       }\n \n       if (unchanged) acceptedPlaintextBytes.push(plaintextByte);\n-      if (defense === \"infect-hidden\" || unchanged)\n+      if (unchanged)\n         selectedPlaintextBytes.push(plaintextByte);\n     }\n   }\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "438cb7ee9b791829ca1923f0055b8c700431feb333c24ec3471fa6ffe71b20cc",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "299a079046f71d6a18ecf2b4e5dc81b8149220101301042692449c18bc6576ad",
     "owningTest": "hidden infection closes",
     "owningTests": [
       "hidden infection closes this selection channel when no validity oracle is granted"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "     × hidden infection closes this selection channel when no validity oracle is granted 14ms",
+      " FAIL  src/sifa.test.ts > accepted-output statistical ineffective fault model > hidden infection closes this selection channel when no validity oracle is granted"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
@@ -589,13 +682,58 @@
   {
     "name": "SIFA infection mask is suppressed",
     "sourceDiff": "diff --git a/src/sifa-fixture.ts b/src/sifa-fixture.ts\nindex 09b08a2..a61483e 100644\n--- a/src/sifa-fixture.ts\n+++ b/src/sifa-fixture.ts\n@@ -199,7 +199,7 @@ function injectFirstRoundSboxFault(\n     detectorAlert,\n     returnedCiphertext: xor(\n       executed.correctCiphertext,\n-      infectionMask(executed.correctCiphertext, executed.faultyCiphertext, roundKeys),\n+      xor(infectionMask(executed.correctCiphertext, executed.faultyCiphertext, roundKeys), infectionMask(executed.correctCiphertext, executed.faultyCiphertext, roundKeys)),\n     ),\n     returnedKind: \"infected\",\n   };\n",
-    "baseline": "765c027140a759f65acbb2b3465ab1c0ede572c0ba7eb076e2f563248e95973e",
-    "mutant": "37b2df713a2d5f45be677c925d275038e4b60488485d71e4c37da00f6336d628",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "5659016ccfa732e96ddb77a31ed9196b06166f1ae9dd438fa4925fae8732a855",
     "owningTest": "computes an infected output",
     "owningTests": [
       "computes an infected output on detected mismatch"
     ],
-    "failedTests": [],
+    "failedTests": [
+      "     × computes an infected output on detected mismatch 13ms",
+      " FAIL  src/sifa.test.ts > accepted-output statistical ineffective fault model > computes an infected output on detected mismatch"
+    ],
+    "assertionFailure": true,
+    "retries": 0,
+    "restoredGreen": true
+  },
+  {
+    "name": "Integral includes forbidden final MixColumns",
+    "sourceDiff": "diff --git a/src/integral.ts b/src/integral.ts\nindex 69266d3..b892a48 100644\n--- a/src/integral.ts\n+++ b/src/integral.ts\n@@ -10,7 +10,7 @@ export function reducedAes(input: Block, key: Block, trace?: Block[]): Block {\n   trace?.push(state.slice());\n   for (let round = 1; round <= 4; round++) {\n     state = shiftRows(state.map(x => SBOX[x]));\n-    if (round < 4) state = mixColumns(state);\n+    if (round <= 4) state = mixColumns(state);\n     state = xor(state, keys[round]);\n     trace?.push(state.slice());\n   }\n",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "b7352a0002385f71539aeb876baac41610f58b225ad827530ea6e37137883dcf",
+    "owningTest": "matches independent FIPS intermediate",
+    "failedTests": [
+      "     × matches independent FIPS intermediate values with the declared final-round omission 15ms",
+      " FAIL  src/integral.test.ts > reduced-round integral > matches independent FIPS intermediate values with the declared final-round omission"
+    ],
+    "assertionFailure": true,
+    "retries": 0,
+    "restoredGreen": true
+  },
+  {
+    "name": "Integral filters with forward S-box",
+    "sourceDiff": "diff --git a/src/integral.ts b/src/integral.ts\nindex 69266d3..a44fb98 100644\n--- a/src/integral.ts\n+++ b/src/integral.ts\n@@ -1,4 +1,4 @@\n-import { SBOX, INV_SBOX } from './aes/sbox';\n+import { SBOX } from './aes/sbox';\n import { shiftRows, mixColumns, xor, type Block } from './aes/state';\n import { expand } from './aes/keyExpansion';\n \n@@ -32,7 +32,7 @@ export function filterIntegral(ciphertexts: Block[], candidates?: number[][]): n\n     throw Error('A complete distinct 256-ciphertext Lambda-set is required.');\n   return Array.from({length: 16}, (_, byte) =>\n     (candidates?.[byte] ?? Array.from({length: 256}, (_, k) => k))\n-      .filter(k => ciphertexts.reduce((sum, c) => sum ^ INV_SBOX[c[byte] ^ k], 0) === 0));\n+      .filter(k => ciphertexts.reduce((sum, c) => sum ^ SBOX[c[byte] ^ k], 0) === 0));\n }\n /** Attacker receives an encryption oracle, never a key or intermediate state. */\n export function integralAttack(encrypt: (p: Block) => Block, base: Block, maxSets = 6) {\n",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "e42b8ac0de0d13b2c9f874e82a4b4e2e4637970499c7e76523e91dc19f44f46d",
+    "owningTest": "retains the real byte",
+    "failedTests": [
+      "     × retains the real byte in every first-set candidate list and balances round three 84ms",
+      " FAIL  src/integral.test.ts > reduced-round integral > retains the real byte in every first-set candidate list and balances round three"
+    ],
+    "assertionFailure": true,
+    "retries": 0,
+    "restoredGreen": true
+  },
+  {
+    "name": "Dispersion check omits ShiftRows",
+    "sourceDiff": "diff --git a/src/wide-trail.ts b/src/wide-trail.ts\nindex a780e08..21d1203 100644\n--- a/src/wide-trail.ts\n+++ b/src/wide-trail.ts\n@@ -4,7 +4,7 @@ import { shiftRows } from './aes/state';\n  * disperse to four distinct destination columns for the wide-trail argument. */\n export function columnDispersion(weakened = false): number[][] {\n   const labels = Uint8Array.from({length: 16}, (_, i) => i);\n-  const output = weakened ? labels : shiftRows(labels);\n+  const output = weakened ? shiftRows(labels) : labels;\n   return Array.from({length: 4}, (_, column) =>\n     Array.from({length: 4}, (_, row) => Math.floor(output.indexOf(4 * column + row) / 4)));\n }\n",
+    "baseline": "ad7894dfe214d337d499ca35a23fe812ebaccba690073d0fae1f413460c149fc",
+    "mutant": "d10d5e607ee673f95bb530f8503b6ce9460488be83f5ea56bcbbb517f078d037",
+    "owningTest": "checks every source column",
+    "failedTests": [
+      "     × checks every source column and detects removal of ShiftRows 9ms",
+      " FAIL  src/integral.test.ts > reduced-round integral > checks every source column and detects removal of ShiftRows"
+    ],
     "assertionFailure": true,
     "retries": 0,
     "restoredGreen": true
