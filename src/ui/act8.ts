@@ -96,9 +96,6 @@ export function act8(key: Block, plaintext: Block): string {
   const defensePair = injectRound9MixColumnsFault(key, plaintext, 0, 0, 1);
   const recomputed = cipher(plaintext, schedule);
   const oneSidedDetected = !equal(defensePair.faulty, recomputed);
-  const commonModeFirst = injectRound9MixColumnsFault(key, plaintext, 0, 0, 1);
-  const commonModeSecond = injectRound9MixColumnsFault(key, plaintext, 0, 0, 1);
-  const commonModeDetected = !equal(commonModeFirst.faulty, commonModeSecond.faulty);
 
   const changedModelFirst = injectRound9MixColumnsFault(key, plaintext, 0, 1, 1);
   const changedModelSecond = injectRound9MixColumnsFault(key, plaintext, 0, 1, 2);
@@ -179,11 +176,16 @@ export function act8(key: Block, plaintext: Block): string {
     ) +
     check(
       "dfa-recompute",
-      oneSidedDetected && !commonModeDetected,
-      oneSidedDetected && !commonModeDetected
-        ? "Simple recomputation detects a one-sided transient fault because the two ciphertexts differ; the same check would miss a common-mode fault that corrupts both executions identically."
-        : "Recomputation did not exhibit the expected one-sided/common-mode distinction.",
+      oneSidedDetected,
+      oneSidedDetected
+        ? "Simple recomputation detects a one-sided transient fault because the faulty ciphertext differs from a clean second execution."
+        : "Recomputation did not detect the one-sided transient fault.",
     ) +
+    // Stated, not scored: a common-mode fault corrupts both executions
+    // identically, so two equal faulty ciphertexts pass the same comparison.
+    // Two identical deterministic injections cannot disagree, so there is no
+    // control here that could fail, and a green check would have claimed one.
+    `<p data-note="dfa-common-mode">The same comparison would miss a common-mode fault that corrupts both executions identically: two equal faulty ciphertexts pass a recomputation check. That limit is stated here rather than scored, because two identical injections of the same fault cannot disagree and a check that cannot fail is not a control.</p>` +
     check(
       "dfa-wrong-model",
       !wrongModelContainsTruth,
