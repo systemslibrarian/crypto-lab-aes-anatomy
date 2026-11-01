@@ -22,7 +22,6 @@ import { act5 } from "./ui/act5";
 import { act6 } from "./ui/act6";
 import { act8 } from "./ui/act8";
 import { act9 } from "./ui/act9";
-import type { SifaDefense, SifaFaultModel } from "./sifa-fixture";
 import { grid } from "./ui/common";
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T,
   val = (id: string) => el<HTMLInputElement>(id).value;
@@ -130,6 +129,28 @@ let selected = 0,
 const initialized = new Set<number>();
 const variant = () =>
   document.querySelector<HTMLInputElement>("input[name=variant]:checked")!.value;
+const SIFA_FAULT_MODELS = ["noisy-stuck-at-zero", "secret-independent"] as const;
+const SIFA_DEFENSES = ["reject", "infect-hidden", "infect-with-validity"] as const;
+
+// `as SifaFaultModel` on a DOM read is a compile-time assertion and nothing
+// more: at runtime the value is whatever the select holds. Both of these reach
+// act9, which interpolates them into the HTML it returns, and that string is
+// assigned to innerHTML -- so a select whose value has been changed outside
+// the page's own options puts arbitrary markup on the page. CodeQL reports it
+// as js/xss-through-dom at src/main.ts:323.
+//
+// This narrows the read to the options the page actually offers, which is what
+// the type claimed all along. Anything else throws, and the caller's existing
+// catch shows the message through notice(), which writes textContent.
+function pickOne<T extends readonly string[]>(
+  value: string,
+  allowed: T,
+  what: string,
+): T[number] {
+  if ((allowed as readonly string[]).includes(value)) return value as T[number];
+  throw Error(`Unrecognised ${what}: choose one of the listed options.`);
+}
+
 function input() {
   const size = Number(val("key-size")),
     key = parseHex(val("key"), [size / 4]),
@@ -318,8 +339,8 @@ el("run-sifa").onclick = () => {
   try {
     const v = input();
     const bit = Number(val("sifa-bit"));
-    const model = val("sifa-model") as SifaFaultModel;
-    const defense = val("sifa-defense") as SifaDefense;
+    const model = pickOne(val("sifa-model"), SIFA_FAULT_MODELS, "fault model");
+    const defense = pickOne(val("sifa-defense"), SIFA_DEFENSES, "output handling");
     el("result-9").innerHTML = act9(v.key, v.plaintext, bit, model, defense, v.seed);
     initialized.add(9);
     notice(9, "Real-AES fault witnesses and accepted-output statistics computed from the current AES-128 inputs.");
