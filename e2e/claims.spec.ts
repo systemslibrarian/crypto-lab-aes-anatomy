@@ -677,3 +677,47 @@ test("Singular affine recovery renders an implementation alarm", async ({ page }
   await expectScore(page, "control", "control");
   await expectVerdict(page.locator("#control-verdict"), "control-fails", "ok");
 });
+
+test("a fault-experiment select narrowed outside the page's own options is refused", async ({ page }) => {
+  // `val("sifa-model") as SifaFaultModel` was a compile-time assertion and nothing
+  // else: at runtime the value is whatever the select holds, and act9 interpolates it
+  // into the HTML assigned to #result-9. CodeQL reported js/xss-through-dom, and it
+  // was reachable — appending an option whose value is markup put that element on the
+  // page while the notice reported success. This is that attempt, as a test.
+  await boot(page);
+  await page.locator("#tab-9").click();
+
+  const payload = '<img src=x data-injected=yes>';
+  await page.locator("#sifa-model").evaluate((select, value) => {
+    const rogue = document.createElement("option");
+    rogue.value = value;
+    rogue.textContent = "rogue";
+    (select as HTMLSelectElement).append(rogue);
+    (select as HTMLSelectElement).value = value;
+  }, payload);
+  await expect(page.locator("#sifa-model")).toHaveValue(payload);
+
+  await page.locator("#run-sifa").click();
+
+  // Nothing is built from it, and the page says why rather than reporting success.
+  await expect(page.locator("#result-9 [data-injected]")).toHaveCount(0);
+  await expect(page.locator("#result-9 img")).toHaveCount(0);
+  await expect(page.locator("#notice-9")).toHaveText(
+    "Unrecognised fault model: choose one of the listed options.",
+  );
+
+  // And the defense select is narrowed the same way.
+  await page.locator("#sifa-model").selectOption("noisy-stuck-at-zero");
+  await page.locator("#sifa-defense").evaluate((select, value) => {
+    const rogue = document.createElement("option");
+    rogue.value = value;
+    rogue.textContent = "rogue";
+    (select as HTMLSelectElement).append(rogue);
+    (select as HTMLSelectElement).value = value;
+  }, payload);
+  await page.locator("#run-sifa").click();
+  await expect(page.locator("#result-9 [data-injected]")).toHaveCount(0);
+  await expect(page.locator("#notice-9")).toHaveText(
+    "Unrecognised output handling: choose one of the listed options.",
+  );
+});
