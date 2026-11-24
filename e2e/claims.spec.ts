@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createCipheriv, createHash } from "node:crypto";
 import { runBreak } from "../src/harness";
 import { act7 } from "../src/ui/act7";
 import { seeded } from "../src/random";
@@ -329,7 +329,7 @@ test("Partial codebooks visibly retain unknown bytes and retire on genuine chang
   await expect(page.locator("#result-7")).toBeEmpty();
   await expect(page.locator("#state-grid")).toBeEmpty();
 });
-test("Invalid input lengths, unsupported192, cancellation, and mid-flight retirement", async ({
+test("Invalid input lengths, native AES-192 capability, cancellation, and mid-flight retirement", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
@@ -342,7 +342,23 @@ test("Invalid input lengths, unsupported192, cancellation, and mid-flight retire
   await page.locator("#key-size").selectOption("192");
   await page.locator("#fips-preset").click();
   await page.locator("#webcrypto-check").click();
-  await expectVerdict(page.locator("#webcrypto-verdict"), "unsupported", "info");
+  const native192 = await page.evaluate(async () => {
+    try {
+      await crypto.subtle.importKey("raw", new Uint8Array(24), "AES-CBC", false, ["encrypt"]);
+      return true;
+    } catch (error) {
+      if (error instanceof DOMException && ["OperationError", "NotSupportedError"].includes(error.name)) return false;
+      throw error;
+    }
+  });
+  await expectVerdict(page.locator("#webcrypto-verdict"), native192 ? "match" : "unsupported", native192 ? "ok" : "info");
+  const key = Buffer.from(await page.locator("#key").inputValue(), "hex");
+  const plaintext = Buffer.from(await page.locator("#plaintext").inputValue(), "hex");
+  const oracle = createCipheriv("aes-192-ecb", key, null);
+  oracle.setAutoPadding(false);
+  const expected = Buffer.concat([oracle.update(plaintext), oracle.final()]).toString("hex");
+  await expect(page.locator("#web-own")).toHaveText(expected);
+  if (native192) await expect(page.locator("#web-output")).toHaveText(expected);
   await page.locator("#tab-9").click();
   await page.locator("#run-sifa").click();
   await expect(page.locator('#result-9 [data-verdict="wrong-key-size"]')).toContainText(

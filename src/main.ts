@@ -61,7 +61,7 @@ const specs = [
     intro:
       "The round transformations now fit together with AddRoundKey. The final round omits MixColumns, leaving a visible gap in the trace. Compare the hand-built cipher with the browser’s independent AES implementation.",
     controls:
-      '<div class="actions"><button id="cipher-step">Step one cipher layer</button><button id="webcrypto-check">Run WebCrypto cross-check</button></div><p>WebCrypto checks AES-128 and AES-256 using AES-CBC with zero IV and its first output block. Chromium does not support AES-192; the hand-built 192-bit path is checked with FIPS vectors.</p><div id="webcrypto-result" role="status" aria-live="polite"></div>',
+      '<div class="actions"><button id="cipher-step">Step one cipher layer</button><button id="webcrypto-check">Run WebCrypto cross-check</button></div><p>The cross-check asks this browser to encrypt with the selected key size. The first AES-CBC output block uses a zero IV and can be compared directly with the hand-built cipher. FIPS vectors also cover AES-192.</p><div id="webcrypto-result" role="status" aria-live="polite"></div>',
   },
   {
     title: "Reverse the cipher",
@@ -407,7 +407,7 @@ el("webcrypto-check").onclick = async () => {
       r = await webCryptoCheck(v.key, v.plaintext);
     if (stamp !== version) return;
     el("webcrypto-result").innerHTML =
-      `<p id="webcrypto-verdict" data-verdict="${r.supported ? (r.match ? "match" : "mismatch") : "unsupported"}" class="${r.supported ? (r.match ? "ok" : "alarm") : "info"}">${r.supported ? (r.match ? "✓ Independent WebCrypto matches." : "⚠ Independent WebCrypto differs.") : "ⓘ AES-192 is unsupported by Chromium WebCrypto; FIPS vectors cover this path."}</p><p>Key <code id="web-key">${hex(v.key)}</code>; plaintext <code id="web-plaintext">${hex(v.plaintext)}</code>; hand-built <code id="web-own">${hex(r.own)}</code>${r.web ? '; WebCrypto <code id="web-output">' + hex(r.web) + "</code>" : ""}.</p>`;
+      `<p id="webcrypto-verdict" data-verdict="${r.supported ? (r.match ? "match" : "mismatch") : "unsupported"}" class="${r.supported ? (r.match ? "ok" : "alarm") : "info"}">${r.supported ? (r.match ? "✓ Independent WebCrypto matches." : "⚠ Independent WebCrypto differs.") : "ⓘ This browser declined the 192-bit AES key. No WebCrypto comparison ran. FIPS vectors cover this key size."}</p><p>Key <code id="web-key">${hex(v.key)}</code>; plaintext <code id="web-plaintext">${hex(v.plaintext)}</code>; hand-built <code id="web-own">${hex(r.own)}</code>${r.web ? '; WebCrypto <code id="web-output">' + hex(r.web) + "</code>" : ""}.</p>`;
   } catch (e) {
     notice(5, (e as Error).message);
   }

@@ -1,5 +1,6 @@
 import { it, expect } from "vitest";
 import { webcrypto } from "node:crypto";
+import { webCryptoCheck } from "../crosscheck";
 import fips from "../data/fips197.json";
 import { xtime, mul, inv, pow254 } from "../gf/gf256";
 import { SBOX, INV_SBOX, AFFINE, ddt, lat, affineIdentity } from "./sbox";
@@ -171,3 +172,12 @@ for (const variant of ["noSub", "affine", "noShift", "noMix"])
     expect(r.broken.successes).toBe(32);
     expect(r.control.successes).toBe(0);
   }, 30000);
+
+it("compares AES-192 with native WebCrypto when the runtime accepts it", async () => {
+  const key = Uint8Array.from({ length: 24 }, (_, i) => i);
+  const block = Uint8Array.from({ length: 16 }, (_, i) => 17 * i);
+  const result = await webCryptoCheck(key, block);
+  expect(result.supported).toBe(true);
+  expect(result.match).toBe(true);
+  expect(Buffer.from(result.web!).toString("hex")).toBe("dda97ca4864cdfe06eaf70a0ec0d7191");
+});
